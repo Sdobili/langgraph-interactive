@@ -525,8 +525,8 @@
       {
         id: "02",
         active: true,
-        title: { zh: "条件边与路由", en: "Conditional edges" },
-        badge: "Lesson 02 · Conditional edges · Pages + Pyodide",
+        title: { zh: "工单分派", en: "Ticket routing" },
+        badge: "Lesson 02 · Ticket routing · Pages + Pyodide",
         further: {
           zh: [
             { label: "LangGraph 文档 · Graph API（条件边）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
@@ -545,8 +545,8 @@
       {
         id: "03",
         active: true,
-        title: { zh: "Reducer 合并", en: "Reducers" },
-        badge: "Lesson 03 · Reducers · Pages + Pyodide",
+        title: { zh: "检索片段", en: "Passage reducer" },
+        badge: "Lesson 03 · Passage reducer · Pages + Pyodide",
         further: {
           zh: [
             { label: "LangGraph 文档 · Graph API（reducers）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
@@ -565,8 +565,8 @@
       {
         id: "04",
         active: true,
-        title: { zh: "循环与递归上限", en: "Cycles + recursion limit" },
-        badge: "Lesson 04 · Cycles + recursion_limit · Pages + Pyodide",
+        title: { zh: "查询队列", en: "Lookup queue" },
+        badge: "Lesson 04 · Lookup queue · Pages + Pyodide",
         further: {
           zh: [
             { label: "LangGraph 文档 · Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
@@ -585,8 +585,8 @@
       {
         id: "05",
         active: true,
-        title: { zh: "消息与假模型回声", en: "Messages + fake echo" },
-        badge: "Lesson 05 · Messages + fake echo · Pages + Pyodide",
+        title: { zh: "草稿回复", en: "Draft reply" },
+        badge: "Lesson 05 · Draft reply · Pages + Pyodide",
         further: {
           zh: [
             { label: "LangGraph 文档 · Graph API（add_messages）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
@@ -597,16 +597,16 @@
             { label: "StateGraph API reference", href: "https://reference.langchain.com/python/langgraph/graph/state/StateGraph" },
           ],
           note: {
-            zh: "消息是普通 dict。假模型是纯 Python，不是 GenericFakeChatModel，也不需要 API key。",
-            en: "Messages are plain dicts. The fake model is pure Python — not GenericFakeChatModel, and no API key.",
+            zh: "消息是普通 dict。support_model 是三句固定回复，不加载 GenericFakeChatModel，也不需要 API key。",
+            en: "Messages are plain dicts. support_model is a three-answer table — GenericFakeChatModel is not loaded, and there is no API key.",
           },
         },
       },
       {
         id: "06",
         active: true,
-        title: { zh: "内存检查点", en: "Checkpoint memory" },
-        badge: "Lesson 06 · InMemorySaver · Pages + Pyodide",
+        title: { zh: "客服线程", en: "Support thread" },
+        badge: "Lesson 06 · Support thread · Pages + Pyodide",
         further: {
           zh: [
             { label: "LangGraph 文档 · Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },

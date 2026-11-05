@@ -7,11 +7,11 @@ Basics track:
 | Lesson | Topic | Contract |
 |--------|--------|----------|
 | 01 | Minimal `StateGraph` | `inc` then `double` |
-| 02 | Conditional edges | route `n` to positive / negative / zero |
-| 03 | Reducers | `Annotated[list, operator.add]` |
-| 04 | Cycles + `recursion_limit` | loop `tick` until `n == 0` |
-| 05 | Messages + fake echo | `add_messages` appends, same `id` replaces |
-| 06 | `InMemorySaver` checkpoint | thread state survives the next `invoke({})` |
+| 02 | Ticket routing | conditional edge picks billing, engineering, or general |
+| 03 | Passage reducer | `operator.add` keeps every hit; `draft` overwrites |
+| 04 | Lookup queue | drain `remaining` until `END`; `recursion_limit` stops a long queue |
+| 05 | Draft reply | `add_messages` appends, and id `draft` replaces the previous draft |
+| 06 | Support thread | `InMemorySaver` keeps `acct-1042` across the next user turn |
 
 `mini_langgraph.py` is a teaching subset (one destination per step, dict messages, latest checkpoint only). The module docstring lists what matches the real API and what is left out. `InMemorySaver` and the older name `MemorySaver` are the same class here.
 

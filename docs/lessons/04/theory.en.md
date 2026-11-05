@@ -1,26 +1,38 @@
-# 04 — Cycles and recursion_limit
+# 04 — Drain a lookup queue
 
 ## What you learn
-- A cycle is a conditional edge that may return a node already visited.
-- Return `END` when the loop should stop. Do not keep a normal edge to `END` on that same node.
-- `invoke(state, config={"recursion_limit": N})` allows at most **N node executions**.
-- One past the limit raises `GraphRecursionError` (import path: `langgraph.errors`).
-- The default limit in this subset is **25**, matching LangGraph's default.
+- A cycle is a conditional edge that can return the node you just ran.
+- `route` returns `"fetch"` while `remaining` still has keys, and `END` when the queue is empty.
+- Do not also add a normal edge from `fetch` to `END`. One outgoing choice per node.
+- `invoke(state, config={"recursion_limit": N})` allows N executions of `fetch`. The next one raises `GraphRecursionError` (`langgraph.errors`).
+- The default limit here is 25.
 
-`trace` uses the list reducer from lesson 03, so each visit appends the value of `n` **before** it is decremented. `route` then sees the updated `n`.
+`evidence` uses the list reducer from lesson 03, so each lookup is kept. `route` sees the queue after `fetch` pops it.
 
 ## Contract
 
 ```text
-n == 0 → no tick.          {"n": 0, "trace": []}
-n == 1 → one tick.         {"n": 0, "trace": [1]}
-n == 3 → three ticks.      {"n": 0, "trace": [3, 2, 1]}
-n == 3, recursion_limit 3  same success (exactly 3 node executions)
-n == 4, recursion_limit 2  GraphRecursionError
-    (the third tick would exceed the limit)
+query: "Can I refund order 1042?"
+
+remaining []                         → no lookup
+remaining ["order"]                  → evidence for order, queue empty
+remaining ["order", "policy"]        → order, then policy
+remaining ["order", "policy", "account"], recursion_limit 3
+                                     → all three records
+remaining [order, policy, account, shipment], recursion_limit 2
+                                     → GraphRecursionError
 ```
 
-Routing functions do **not** count as steps. Only `tick` does.
+Records:
+
+```text
+order     Order 1042 is paid.
+policy    Refunds are allowed within 30 days.
+account   The account email is billing@example.com.
+shipment  Shipment has not left the warehouse.
+```
+
+Each evidence item is `{"tool": "lookup", "key": key, "text": record}`. Routing does not count as a step.
 
 ## Skeleton
 
@@ -29,27 +41,42 @@ import operator
 from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, START, END
 
-class State(TypedDict):
-    n: int
-    trace: Annotated[list, operator.add]
+RECORDS = {
+    "order": "Order 1042 is paid.",
+    "policy": "Refunds are allowed within 30 days.",
+    "account": "The account email is billing@example.com.",
+    "shipment": "Shipment has not left the warehouse.",
+}
 
-def tick(state: State) -> dict:
-    return {"n": state["n"] - 1, "trace": [state["n"]]}
+class State(TypedDict):
+    query: str
+    evidence: Annotated[list, operator.add]
+    remaining: list
+
+def fetch(state: State) -> dict:
+    queue = list(state["remaining"])
+    if not queue:
+        return {}
+    key = queue.pop(0)
+    return {
+        "remaining": queue,
+        "evidence": [{"tool": "lookup", "key": key, "text": RECORDS[key]}],
+    }
 
 def route(state: State) -> str:
-    if state["n"] > 0:
-        return "tick"
+    if state["remaining"]:
+        return "fetch"
     return END
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("tick", tick)
+    g.add_node("fetch", fetch)
     g.add_conditional_edges(START, route)
-    g.add_conditional_edges("tick", route)
+    g.add_conditional_edges("fetch", route)
     return g.compile()
 ```
 
 ## Teaching subset
-- No `path_map` here: the string returned by `route` is the next node, and that string may be `END`.
-- Real LangGraph counts supersteps and can count `START` as well. Here, only node-function calls count, so a limit equal to the number of `tick` calls succeeds.
-- `recursion_limit` above 1000 is rejected so a bug cannot freeze the browser tab.
+- No `path_map`: the string from `route` is the next node, including `END`.
+- Real LangGraph counts supersteps and may count `START`. Here only `fetch` counts, so a limit equal to the queue length succeeds.
+- `recursion_limit` above 1000 is rejected.

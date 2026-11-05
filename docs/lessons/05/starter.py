@@ -1,10 +1,10 @@
-"""Lesson 05 — Messages and a fake echo model (starter).
+"""Lesson 05 — Rewrite the assistant draft.
 
-The node already returns one assistant dict with id "reply".
-Without add_messages, that dict replaces the whole list, so the user turn disappears.
+support_model reads the latest user message and returns one assistant
+message with id "draft". A later run with the same id replaces that draft.
 
-The third case also needs id replacement: a stale message with id "reply"
-must be overwritten, not appended. operator.add will not do that.
+Refunds and invoices have fixed answers. Anything else asks for one of those.
+The messages channel has to use add_messages, or the user turn is dropped.
 """
 
 from typing import TypedDict
@@ -18,23 +18,31 @@ class State(TypedDict):
     messages: list
 
 
-def fake_model(messages: list) -> dict:
-    """Scripted echo. No network and no API key."""
-    text = ""
-    for msg in reversed(messages):
-        if isinstance(msg, dict) and msg.get("role") == "user":
-            text = str(msg.get("content", ""))
-            break
-    return {"id": "reply", "role": "assistant", "content": "echo: " + text}
+def _latest_user_text(messages: list) -> str:
+    for message in reversed(messages):
+        if isinstance(message, dict) and message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
 
 
-def echo(state: State) -> dict:
-    return {"messages": [fake_model(state["messages"])]}
+def support_model(messages: list) -> dict:
+    text = _latest_user_text(messages).lower()
+    if "refund" in text:
+        content = "Refunds are allowed within 30 days. Include the order id."
+    elif "invoice" in text:
+        content = "Invoices are sent to the billing email on the account."
+    else:
+        content = "I can help with refunds or invoices."
+    return {"id": "draft", "role": "assistant", "content": content}
+
+
+def draft_reply(state: State) -> dict:
+    return {"messages": [support_model(state["messages"])]}
 
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("echo", echo)
-    g.add_edge(START, "echo")
-    g.add_edge("echo", END)
+    g.add_node("draft_reply", draft_reply)
+    g.add_edge(START, "draft_reply")
+    g.add_edge("draft_reply", END)
     return g.compile()

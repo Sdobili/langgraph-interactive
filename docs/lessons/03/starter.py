@@ -1,9 +1,10 @@
-"""Lesson 03 — Reducers (starter).
+"""Lesson 03 — Accumulate retrieved passages.
 
-log should concatenate across nodes. total still overwrites.
-The schema below has no reducer, so the second node replaces log.
+passages must grow across retrieve → write.
+draft is a normal field: the writer replaces it.
 
-invoke({"log": [], "total": 0}) must equal {"log": ["a", "b"], "total": 11}.
+invoke({"query": "What is the refund window?", "passages": [], "draft": ""})
+keeps both the faq passage and the policy passage.
 """
 
 from typing import TypedDict
@@ -12,24 +13,31 @@ from langgraph.graph import END, START, StateGraph
 
 
 class State(TypedDict):
-    # TODO: log: Annotated[list, operator.add]
-    log: list
-    total: int
+    query: str
+    # TODO: passages: Annotated[list, operator.add]
+    passages: list
+    draft: str
 
 
-def push_a(state: State) -> dict:
-    return {"log": ["a"], "total": state["total"] + 1}
+def retrieve(state: State) -> dict:
+    return {
+        "passages": [{"source": "faq", "text": state["query"]}],
+        "draft": "Looking up the policy.",
+    }
 
 
-def push_b(state: State) -> dict:
-    return {"log": ["b"], "total": state["total"] + 10}
+def write(state: State) -> dict:
+    return {
+        "passages": [{"source": "policy", "text": "Refunds are allowed within 30 days."}],
+        "draft": "Refunds are allowed within 30 days.",
+    }
 
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("push_a", push_a)
-    g.add_node("push_b", push_b)
-    g.add_edge(START, "push_a")
-    g.add_edge("push_a", "push_b")
-    g.add_edge("push_b", END)
+    g.add_node("retrieve", retrieve)
+    g.add_node("write", write)
+    g.add_edge(START, "retrieve")
+    g.add_edge("retrieve", "write")
+    g.add_edge("write", END)
     return g.compile()
