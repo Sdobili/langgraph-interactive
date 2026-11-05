@@ -524,28 +524,103 @@
       },
       {
         id: "02",
-        active: false,
-        title: { zh: "条件边（即将推出）", en: "Conditional edges (soon)" },
+        active: true,
+        title: { zh: "条件边与路由", en: "Conditional edges" },
+        badge: "Lesson 02 · Conditional edges · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API（条件边）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "StateGraph API 参考", href: "https://reference.langchain.com/python/langgraph/graph/state/StateGraph" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API (conditional edges)", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "StateGraph API reference", href: "https://reference.langchain.com/python/langgraph/graph/state/StateGraph" },
+          ],
+          note: {
+            zh: "本课用浏览器内 mini_langgraph。条件边每次只选一个节点，没有 Send / 并行扇出。",
+            en: "Grading uses in-browser mini_langgraph. Conditional edges pick one node per step — no Send / parallel fan-out.",
+          },
+        },
       },
       {
         id: "03",
-        active: false,
-        title: { zh: "Reducer 合并（即将推出）", en: "Reducers (soon)" },
+        active: true,
+        title: { zh: "Reducer 合并", en: "Reducers" },
+        badge: "Lesson 03 · Reducers · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API（reducers）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "Graph API 用法", href: "https://docs.langchain.com/oss/python/langgraph/use-graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API (reducers)", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "Using the Graph API", href: "https://docs.langchain.com/oss/python/langgraph/use-graph-api" },
+          ],
+          note: {
+            zh: "Reducer 来自 Annotated 里的第一个可调用对象。没有 reducer 的字段仍是覆盖。",
+            en: "Reducers are the first callable in Annotated metadata. Fields without one still overwrite.",
+          },
+        },
       },
       {
         id: "04",
-        active: false,
-        title: { zh: "ReAct + FakeModel（即将推出）", en: "ReAct + FakeModel (soon)" },
+        active: true,
+        title: { zh: "循环与递归上限", en: "Cycles + recursion limit" },
+        badge: "Lesson 04 · Cycles + recursion_limit · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "GRAPH_RECURSION_LIMIT", href: "https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "GRAPH_RECURSION_LIMIT", href: "https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT" },
+          ],
+          note: {
+            zh: "本子集只把节点函数执行计入 recursion_limit（默认 25）。路由函数不算步数。",
+            en: "This subset counts node-function executions toward recursion_limit (default 25). Routers are not steps.",
+          },
+        },
       },
       {
         id: "05",
-        active: false,
-        title: { zh: "Checkpoint（即将推出）", en: "Checkpoints (soon)" },
+        active: true,
+        title: { zh: "消息与假模型回声", en: "Messages + fake echo" },
+        badge: "Lesson 05 · Messages + fake echo · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API（add_messages）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "StateGraph API 参考", href: "https://reference.langchain.com/python/langgraph/graph/state/StateGraph" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API (add_messages)", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "StateGraph API reference", href: "https://reference.langchain.com/python/langgraph/graph/state/StateGraph" },
+          ],
+          note: {
+            zh: "消息是普通 dict。假模型是纯 Python，不是 GenericFakeChatModel，也不需要 API key。",
+            en: "Messages are plain dicts. The fake model is pure Python — not GenericFakeChatModel, and no API key.",
+          },
+        },
       },
       {
         id: "06",
-        active: false,
-        title: { zh: "Human-in-the-loop（即将推出）", en: "Human-in-the-loop (soon)" },
+        active: true,
+        title: { zh: "内存检查点", en: "Checkpoint memory" },
+        badge: "Lesson 06 · InMemorySaver · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+            { label: "InMemorySaver API 参考", href: "https://reference.langchain.com/python/langgraph/checkpoint/memory/InMemorySaver" },
+          ],
+          en: [
+            { label: "LangGraph docs · Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+            { label: "InMemorySaver API reference", href: "https://reference.langchain.com/python/langgraph/checkpoint/memory/InMemorySaver" },
+          ],
+          note: {
+            zh: "InMemorySaver 与旧名 MemorySaver 在本子集是同一个类。只保留每个 thread_id 的最新 state，没有时间旅行。",
+            en: "InMemorySaver and the older name MemorySaver are the same class here. One latest state per thread_id — no time travel.",
+          },
+        },
       },
     ];
 
@@ -698,10 +773,14 @@
           const lesson = LESSONS.find(l => l.id === btn.dataset.id);
           if (!lesson || !lesson.active) return;
           if (lesson.id === currentLesson.id) return;
+          setSolutionVisible(false);
           currentLesson = lesson;
           localStorage.setItem(LESSON_KEY, lesson.id);
           syncChrome();
-          loadLessonAssets();
+          document.getElementById("out").innerHTML =
+            `<span class="dim">Loaded lesson ${escapeHtml(lesson.id)}. Edit the starter and run grade.</span>`;
+          setStatus("", "");
+          loadLessonAssets({ resetEditor: true });
         });
       });
     }
@@ -735,25 +814,26 @@
       highlightTheory();
     }
 
-    async function loadStarterSolution() {
+    async function loadStarterSolution(options) {
+      const resetEditor = !!(options && options.resetEditor);
       const [sRes, solRes] = await Promise.all([
         fetch(`lessons/${currentLesson.id}/starter.py`),
         fetch(`lessons/${currentLesson.id}/solution.py`),
       ]);
+      if (!sRes.ok) throw new Error(`starter.py HTTP ${sRes.status}`);
+      if (!solRes.ok) throw new Error(`solution.py HTTP ${solRes.status}`);
       starter = await sRes.text();
       solution = await solRes.text();
-      if (editor) {
-        const cur = editor.getValue();
-        if (!cur.trim() || cur === "# loading…") {
-          editor.setValue(starter);
-        }
+      if (editor && (resetEditor || !editor.getValue().trim() || editor.getValue() === "# loading…")) {
+        editor.setValue(starter);
+        editor.updateOptions({ readOnly: false });
       }
-      if (solutionEditor) solutionEditor.setValue(solution);
+      if (solutionEditor) solutionEditor.setValue(solution || "");
     }
 
-    async function loadLessonAssets() {
+    async function loadLessonAssets(options) {
       try {
-        await Promise.all([renderTheory(), loadStarterSolution()]);
+        await Promise.all([renderTheory(), loadStarterSolution(options)]);
       } catch (err) {
         document.getElementById("theory").innerHTML =
           `<span style="color:var(--fail)">❌ ${escapeHtml(String(err))}</span>`;
@@ -832,7 +912,7 @@
       setStatus("grading…", "");
       document.getElementById("out").innerHTML = '<span class="dim">Running grader in Pyodide…</span>';
       try {
-        const data = await LGGrader.grade(editor.getValue());
+        const data = await LGGrader.grade(editor.getValue(), currentLesson.id);
         renderOut(data.lines || [], !!data.ok);
       } catch (err) {
         renderOut(["❌ Request failed: " + err], false);

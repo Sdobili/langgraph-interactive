@@ -1,6 +1,19 @@
-# LangGraph Interactive — Lesson 01
+# LangGraph Interactive — Lessons 01–06
 
-FastAPI-Interactive-style lesson: edit a minimal `StateGraph` in the browser, grade it with **Pyodide** (Python in the browser) + a tiny `mini_langgraph` shim. **No API keys. No backend.**
+FastAPI-Interactive-style lessons: edit a `StateGraph` in the browser, grade it with **Pyodide** (Python in the browser) + a tiny `mini_langgraph` shim. **No API keys. No backend.**
+
+Basics track:
+
+| Lesson | Topic | Contract |
+|--------|--------|----------|
+| 01 | Minimal `StateGraph` | `inc` then `double` |
+| 02 | Conditional edges | route `n` to positive / negative / zero |
+| 03 | Reducers | `Annotated[list, operator.add]` |
+| 04 | Cycles + `recursion_limit` | loop `tick` until `n == 0` |
+| 05 | Messages + fake echo | `add_messages` appends, same `id` replaces |
+| 06 | `InMemorySaver` checkpoint | thread state survives the next `invoke({})` |
+
+`mini_langgraph.py` is a teaching subset (one destination per step, dict messages, latest checkpoint only). The module docstring lists what matches the real API and what is left out. `InMemorySaver` and the older name `MemorySaver` are the same class here.
 
 ## Open the live site (GitHub Pages)
 
@@ -21,14 +34,11 @@ On first load the banner shows **Loading Python…** while Pyodide boots from th
 
 Theory panel: **中文 | EN** tabs (persisted in `localStorage`), skeleton code highlighted with highlight.js (github-dark).
 
-## Lesson 01 contract
+## Lesson contract
 
-| Piece | Spec |
-|-------|------|
-| State | `TypedDict` with `count: int` |
-| Nodes | `inc` → `count + 1`; `double` → `count * 2` |
-| Edges | `START → inc → double → END` |
-| Check | `invoke({"count": 3})` → `{"count": 8}` |
+Every lesson exports `build_graph()` and returns a compiled graph. The grader calls `invoke` (and, in lesson 06, `get_state`) with the cases in `docs/grader_cases.json`. **Show solution** opens a separate read-only panel. Only **Reset**, or switching lessons, replaces the student editor.
+
+Lesson 01 check: `invoke({"count": 3})` → `{"count": 8}` (`START → inc → double → END`).
 
 ## How grading works (Pages-only)
 
@@ -46,7 +56,7 @@ Student imports stay the same (`from langgraph.graph import StateGraph, START, E
 ## Layout (3-column, FastAPI Interactive style)
 
 ```
-LEFT    Lesson list (01 active; 02–06 placeholders)
+LEFT    Lesson list (01–06)
 CENTER  Monaco editor · Run grade / Reset / Show solution · grade output
 RIGHT   Courseware (中文|EN theory + highlighted skeleton) · Further reading
 ```
@@ -55,14 +65,24 @@ RIGHT   Courseware (中文|EN theory + highlighted skeleton) · Further reading
 docs/                         # ← GitHub Pages root
   index.html                  # 3-column UI
   mini_langgraph.py           # pure-Python StateGraph subset
-  js/grader.js                # load Pyodide, run asserts
-  lessons/01/
+  grade_lib.py                # shared assert runner
+  grader_cases.json           # per-lesson cases
+  js/grader.js                # load Pyodide, run grade_lib
+  lessons/01/ … lessons/06/
     starter.py  solution.py
     theory.en.md  theory.zh.md
-lessons/01_minimal_graph/     # same lesson for optional CLI harness
-harness/                      # optional local CLI (needs langgraph installed)
+lessons/01_minimal_graph/     # lesson 01 again, for the optional CLI harness
+harness/                      # optional local CLI (needs langgraph installed; lesson 01 only)
 web/                          # optional FastAPI UI (not required for Pages)
 ```
+
+Smoke the Pages lessons locally (no Pyodide, same grader the browser calls):
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Each `solution.py` passes. Each `starter.py` fails with an expected-vs-actual line (lesson 01 says `build_graph()` returned None).
 
 ## Optional: CLI grader (real langgraph)
 
