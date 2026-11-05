@@ -617,8 +617,164 @@
             { label: "InMemorySaver API reference", href: "https://reference.langchain.com/python/langgraph/checkpoint/memory/InMemorySaver" },
           ],
           note: {
-            zh: "InMemorySaver 与旧名 MemorySaver 在本子集是同一个类。只保留每个 thread_id 的最新 state，没有时间旅行。",
-            en: "InMemorySaver and the older name MemorySaver are the same class here. One latest state per thread_id — no time travel.",
+            zh: "InMemorySaver 与旧名 MemorySaver 在本子集是同一个类。invoke(新输入) 从 START 再跑；invoke(None) 才接着 next。",
+            en: "InMemorySaver and the older name MemorySaver are the same class here. A new input reruns from START; invoke(None) resumes next.",
+          },
+        },
+      },
+      {
+        id: "07",
+        active: true,
+        title: { zh: "工具循环", en: "Tool loop" },
+        badge: "Lesson 07 · Tool loop · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Agents", href: "https://docs.langchain.com/oss/python/langgraph/workflows-agents" },
+            { label: "Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Workflows and agents", href: "https://docs.langchain.com/oss/python/langgraph/workflows-agents" },
+            { label: "Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          note: {
+            zh: "工具是本地函数。一轮只发一个 tool call。",
+            en: "Tools are local functions. One tool call per turn.",
+          },
+        },
+      },
+      {
+        id: "08",
+        active: true,
+        title: { zh: "发出前确认", en: "Approval" },
+        badge: "Lesson 08 · Approval · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Interrupts", href: "https://docs.langchain.com/oss/python/langgraph/interrupts" },
+            { label: "Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+          ],
+          en: [
+            { label: "LangGraph docs · Interrupts", href: "https://docs.langchain.com/oss/python/langgraph/interrupts" },
+            { label: "Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+          ],
+          note: {
+            zh: "暂停写在 compile(interrupt_before=...)。恢复用 invoke(None)。",
+            en: "The pause is compile(interrupt_before=...). Resume with invoke(None).",
+          },
+        },
+      },
+      {
+        id: "09",
+        active: true,
+        title: { zh: "改写快照", en: "Edit a snapshot" },
+        badge: "Lesson 09 · Edit a snapshot · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+            { label: "Time travel", href: "https://docs.langchain.com/oss/python/langgraph/use-time-travel" },
+          ],
+          en: [
+            { label: "LangGraph docs · Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+            { label: "Time travel", href: "https://docs.langchain.com/oss/python/langgraph/use-time-travel" },
+          ],
+          note: {
+            zh: "历史是这个线程的 superstep，从新到旧。没有分支时间线。",
+            en: "History is this thread's supersteps, newest first. No branch timeline.",
+          },
+        },
+      },
+      {
+        id: "10",
+        active: true,
+        title: { zh: "检索子图", en: "Subgraph" },
+        badge: "Lesson 10 · Subgraph · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Subgraphs", href: "https://docs.langchain.com/oss/python/langgraph/use-subgraphs" },
+            { label: "Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Subgraphs", href: "https://docs.langchain.com/oss/python/langgraph/use-subgraphs" },
+            { label: "Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          note: {
+            zh: "子图覆盖 passages，父图的 reducer 再追加一次。",
+            en: "The child overwrites passages. The parent reducer appends that list once.",
+          },
+        },
+      },
+      {
+        id: "11",
+        active: true,
+        title: { zh: "逐项报价", en: "Line items" },
+        badge: "Lesson 11 · Line items · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Map-reduce", href: "https://docs.langchain.com/oss/python/langgraph/use-graph-api" },
+            { label: "Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Map-reduce and the Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+            { label: "Using the Graph API", href: "https://docs.langchain.com/oss/python/langgraph/use-graph-api" },
+          ],
+          note: {
+            zh: "Send 列表按顺序执行。真正的 LangGraph 可能并发。",
+            en: "A Send list runs in order. Real LangGraph may run it concurrently.",
+          },
+        },
+      },
+      {
+        id: "12",
+        active: true,
+        title: { zh: "跨线程档案", en: "Cross-thread note" },
+        badge: "Lesson 12 · Cross-thread note · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Memory", href: "https://docs.langchain.com/oss/python/langgraph/add-memory" },
+            { label: "Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+          ],
+          en: [
+            { label: "LangGraph docs · Memory", href: "https://docs.langchain.com/oss/python/langgraph/add-memory" },
+            { label: "Persistence", href: "https://docs.langchain.com/oss/python/langgraph/persistence" },
+          ],
+          note: {
+            zh: "store 跨 thread_id。检查点不会。",
+            en: "The store is shared across thread ids. The checkpointer is not.",
+          },
+        },
+      },
+      {
+        id: "13",
+        active: true,
+        title: { zh: "扣款重试", en: "Charge retry" },
+        badge: "Lesson 13 · Charge retry · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          note: {
+            zh: "RetryPolicy 只在节点抛异常时再生效。每次尝试计入 recursion_limit。",
+            en: "RetryPolicy runs again only when the node raises. Each attempt counts toward recursion_limit.",
+          },
+        },
+      },
+      {
+        id: "14",
+        active: true,
+        title: { zh: "最近三条消息", en: "Last three messages" },
+        badge: "Lesson 14 · Last three messages · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 文档 · Graph API（messages）", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graph API (messages)", href: "https://docs.langchain.com/oss/python/langgraph/graph-api" },
+          ],
+          note: {
+            zh: "窗口写在 reducer 里：先 add_messages，再保留最后三条。",
+            en: "The window is the reducer: add_messages, then keep the last three.",
           },
         },
       },

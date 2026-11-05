@@ -76,10 +76,14 @@ def grade_source(src: str, cases: list) -> dict:
 
 
 def _run_step(graph: Any, step: dict) -> tuple[bool, str]:
+    if "update_state" in step:
+        return _run_update_state(graph, step)
+    if "history" in step:
+        return _run_history(graph, step)
     if "get_state" in step:
         return _run_get_state(graph, step)
     if "input" not in step:
-        return False, "❌ grader case needs input, get_state, or steps"
+        return False, "❌ grader case needs input, get_state, update_state, history, or steps"
     config = step.get("config")
     label = _invoke_label(step)
     raises = step.get("raises")
@@ -111,10 +115,64 @@ def _run_get_state(graph: Any, step: dict) -> tuple[bool, str]:
         got = snap.values
     except Exception as exc:
         return False, f"❌ {label} raised {type(exc).__name__}: {exc}"
-    expected = step.get("expected")
-    if got == expected:
-        return True, f"✅ {label} → {_dump(got)}"
-    return False, f"❌ {label} → {_dump(got)}  (expected {_dump(expected)})"
+    problems = []
+    if "expected" in step and got != step["expected"]:
+        problems.append(f"values {_dump(got)} (expected {_dump(step['expected'])})")
+    got_next = list(getattr(snap, "next", ()))
+    if "next" in step and got_next != list(step["next"]):
+        problems.append(f"next {got_next} (expected {list(step['next'])})")
+    if "expected" not in step and "next" not in step:
+        return False, f"❌ {label} is missing expected values or next"
+    if problems:
+        return False, f"❌ {label} " + "; ".join(problems)
+    return True, f"✅ {label} → {_dump(got)}"
+
+
+def _run_update_state(graph: Any, step: dict) -> tuple[bool, str]:
+    spec = step["update_state"]
+    config = step.get("config")
+    values = spec.get("values", {})
+    as_node = spec.get("as_node")
+    label = f"update_state({_dump(values)}, as_node={as_node!r})"
+    try:
+        snap = graph.update_state(config, values, as_node=as_node)
+    except Exception as exc:
+        return False, f"❌ {label} raised {type(exc).__name__}: {exc}"
+    problems = []
+    if "expected" in step and snap.values != step["expected"]:
+        problems.append(
+            f"values {_dump(snap.values)} (expected {_dump(step['expected'])})"
+        )
+    got_next = list(snap.next)
+    if "next" in step and got_next != list(step["next"]):
+        problems.append(f"next {got_next} (expected {list(step['next'])})")
+    if problems:
+        return False, f"❌ {label} " + "; ".join(problems)
+    return True, f"✅ {label} → {_dump(snap.values)}"
+
+
+def _run_history(graph: Any, step: dict) -> tuple[bool, str]:
+    config = step["history"]
+    label = f"get_state_history({_dump(config)})"
+    try:
+        hist = graph.get_state_history(config)
+    except Exception as exc:
+        return False, f"❌ {label} raised {type(exc).__name__}: {exc}"
+    if not hist:
+        return False, "❌ history is empty"
+    problems = []
+    if "length" in step and len(hist) != step["length"]:
+        problems.append(f"length {len(hist)} != {step['length']}")
+    if "newest" in step and hist[0].values != step["newest"]:
+        problems.append(f"newest {_dump(hist[0].values)} (expected {_dump(step['newest'])})")
+    if "older" in step:
+        if len(hist) < 2:
+            problems.append("missing older snapshot")
+        elif hist[1].values != step["older"]:
+            problems.append(f"older {_dump(hist[1].values)} (expected {_dump(step['older'])})")
+    if problems:
+        return False, "❌ history " + "; ".join(problems)
+    return True, f"✅ history ({len(hist)} snapshots)"
 
 
 def _invoke_label(step: dict) -> str:

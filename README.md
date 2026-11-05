@@ -1,4 +1,4 @@
-# LangGraph Interactive — Lessons 01–06
+# LangGraph Interactive — Lessons 01–14
 
 FastAPI-Interactive-style lessons: edit a `StateGraph` in the browser, grade it with **Pyodide** (Python in the browser) + a tiny `mini_langgraph` shim. **No API keys. No backend.**
 
@@ -12,8 +12,16 @@ Basics track:
 | 04 | Lookup queue | drain `remaining` until `END`; `recursion_limit` stops a long queue |
 | 05 | Draft reply | `add_messages` appends, and id `draft` replaces the previous draft |
 | 06 | Support thread | `InMemorySaver` keeps `acct-1042` across the next user turn |
+| 07 | Tool loop | assistant calls `lookup_order` / `lookup_policy`, then answers |
+| 08 | Approval | `interrupt_before=["send"]`, then `invoke(None)` resumes |
+| 09 | Edit a snapshot | `get_state_history` plus `update_state(as_node="classify")` |
+| 10 | Subgraph | a research graph is one node; the parent appends its passages |
+| 11 | Line items | `Send` quotes each SKU in order, then `total` runs once |
+| 12 | Cross-thread note | `InMemoryStore` keeps customer 1042's email for the next thread |
+| 13 | Retry | `RetryPolicy(max_attempts=2)` survives one gateway timeout |
+| 14 | Message window | a reducer keeps the last three messages, then replies |
 
-`mini_langgraph.py` is a teaching subset (one destination per step, dict messages, latest checkpoint only). The module docstring lists what matches the real API and what is left out. `InMemorySaver` and the older name `MemorySaver` are the same class here.
+`mini_langgraph.py` is a teaching subset: `Send` runs in order, checkpoints keep supersteps but not a branch timeline, and the store is a namespace/key dict. The module docstring lists the real call shapes and what is left out. `InMemorySaver` and the older name `MemorySaver` are the same class.
 
 ## Open the live site (GitHub Pages)
 
@@ -36,7 +44,7 @@ Theory panel: **中文 | EN** tabs (persisted in `localStorage`), skeleton code 
 
 ## Lesson contract
 
-Every lesson exports `build_graph()` and returns a compiled graph. The grader calls `invoke` (and, in lesson 06, `get_state`) with the cases in `docs/grader_cases.json`. **Show solution** opens a separate read-only panel. Only **Reset**, or switching lessons, replaces the student editor.
+Every lesson exports `build_graph()` and returns a compiled graph. The grader calls `invoke`, and on later lessons also `get_state`, `update_state`, or `get_state_history`, using `docs/grader_cases.json`. **Show solution** opens a separate read-only panel. Only **Reset**, or switching lessons, replaces the student editor.
 
 Lesson 01 check: `invoke({"count": 3})` → `{"count": 8}` (`START → inc → double → END`).
 
@@ -68,7 +76,7 @@ docs/                         # ← GitHub Pages root
   grade_lib.py                # shared assert runner
   grader_cases.json           # per-lesson cases
   js/grader.js                # load Pyodide, run grade_lib
-  lessons/01/ … lessons/06/
+  lessons/01/ … lessons/14/
     starter.py  solution.py
     theory.en.md  theory.zh.md
 lessons/01_minimal_graph/     # lesson 01 again, for the optional CLI harness
