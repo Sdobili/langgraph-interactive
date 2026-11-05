@@ -64,7 +64,7 @@ Student imports stay the same (`from langgraph.graph import StateGraph, START, E
 ## Layout (3-column, FastAPI Interactive style)
 
 ```
-LEFT    Lesson list (01–06)
+LEFT    Lesson list (01–14)
 CENTER  Monaco editor · Run grade / Reset / Show solution · grade output
 RIGHT   Courseware (中文|EN theory + highlighted skeleton) · Further reading
 ```
@@ -78,7 +78,8 @@ docs/                         # ← GitHub Pages root
   js/grader.js                # load Pyodide, run grade_lib
   lessons/01/ … lessons/14/
     starter.py  solution.py
-    theory.en.md  theory.zh.md
+    theory.en.md  theory.zh.md    # courseware the UI loads
+    theory.md                     # unused stub kept for old links; not graded
 lessons/01_minimal_graph/     # lesson 01 again, for the optional CLI harness
 harness/                      # optional local CLI (needs langgraph installed; lesson 01 only)
 web/                          # optional FastAPI UI (not required for Pages)
