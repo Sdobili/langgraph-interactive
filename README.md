@@ -43,11 +43,17 @@ Browser
 
 Student imports stay the same (`from langgraph.graph import StateGraph, START, END`). The shim installs itself as that module before `exec`.
 
-## Layout
+## Layout (3-column, FastAPI Interactive style)
+
+```
+LEFT    Lesson list (01 active; 02–06 placeholders)
+CENTER  Monaco editor · Run grade / Reset / Show solution · grade output
+RIGHT   Courseware (中文|EN theory + highlighted skeleton) · Further reading
+```
 
 ```
 docs/                         # ← GitHub Pages root
-  index.html                  # UI + CN|EN theory tabs + highlight.js
+  index.html                  # 3-column UI
   mini_langgraph.py           # pure-Python StateGraph subset
   js/grader.js                # load Pyodide, run asserts
   lessons/01/

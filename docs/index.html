@@ -1,64 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LangGraph Interactive · Lesson 01</title>
+  <title>LangGraph Interactive</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css" />
   <style>
     :root {
       --bg: #0f1115;
       --panel: #171a21;
+      --panel-2: #12151c;
       --border: #2a3040;
       --text: #e8ecf4;
       --muted: #9aa3b5;
       --accent: #7c9cff;
+      --accent-dim: #243056;
       --ok: #3ecf8e;
       --fail: #ff6b7a;
       --warn: #f0c674;
       --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --sans: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
+      --left: 220px;
+      --right: minmax(300px, 0.95fr);
+      --center: minmax(420px, 1.35fr);
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
       font-family: var(--sans);
       background: radial-gradient(1200px 600px at 10% -10%, #1a2240 0%, var(--bg) 55%);
       color: var(--text);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 1rem 1.25rem;
+      padding: 0.7rem 1rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(15,17,21,0.85);
+      background: rgba(15,17,21,0.92);
       backdrop-filter: blur(8px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      flex-shrink: 0;
       flex-wrap: wrap;
     }
     header h1 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 650;
       letter-spacing: 0.01em;
     }
     header .badge {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--muted);
       border: 1px solid var(--border);
       border-radius: 999px;
-      padding: 0.2rem 0.65rem;
+      padding: 0.18rem 0.6rem;
     }
     .py-banner {
-      width: 100%;
-      font-size: 0.82rem;
-      padding: 0.45rem 1.25rem;
+      flex-shrink: 0;
+      font-size: 0.8rem;
+      padding: 0.35rem 1rem;
       border-bottom: 1px solid var(--border);
       background: #12151c;
       color: var(--warn);
@@ -66,125 +72,111 @@
     .py-banner.loading { color: var(--warn); }
     .py-banner.ready { color: var(--ok); }
     .py-banner.fail { color: var(--fail); }
+
     .layout {
+      flex: 1;
       display: grid;
-      grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.4fr);
-      gap: 1rem;
-      padding: 1rem;
-      max-width: 1400px;
-      margin: 0 auto;
+      grid-template-columns: var(--left) var(--center) var(--right);
+      gap: 0;
+      min-height: 0;
+      max-height: calc(100vh - 88px);
     }
-    @media (max-width: 960px) {
-      .layout { grid-template-columns: 1fr; }
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+        max-height: none;
+      }
+      .col-left { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .col-center, .col-right { min-height: 520px; border-right: 0; }
+      .col-right { border-top: 1px solid var(--border); }
     }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
+
+    .col-left, .col-center, .col-right {
       display: flex;
       flex-direction: column;
       min-height: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
     }
-    .card-head {
+    .col-right { border-right: 0; }
+    .col-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.55rem 0.85rem 0.55rem 1rem;
+      gap: 0.5rem;
+      padding: 0.55rem 0.85rem;
       border-bottom: 1px solid var(--border);
-      background: #12151c;
-      min-height: 2.6rem;
+      background: var(--panel-2);
+      min-height: 2.55rem;
+      flex-shrink: 0;
     }
-    .card-head h2 {
+    .col-head h2 {
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--muted);
       font-weight: 650;
     }
-    .lang-tabs {
-      display: inline-flex;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #0c0e13;
+
+    /* LEFT: lesson list */
+    .lesson-list {
+      list-style: none;
+      margin: 0;
+      padding: 0.4rem 0;
+      overflow: auto;
+      flex: 1;
     }
-    .lang-tabs button {
+    .lesson-list li button {
+      width: 100%;
+      text-align: left;
       border: 0;
       border-radius: 0;
       background: transparent;
-      color: var(--muted);
-      padding: 0.28rem 0.7rem;
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-    .lang-tabs button + button {
-      border-left: 1px solid var(--border);
-    }
-    .lang-tabs button:hover {
       color: var(--text);
+      padding: 0.55rem 0.9rem;
+      font-size: 0.86rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      border-left: 3px solid transparent;
+    }
+    .lesson-list li button:hover {
       background: #1a2030;
+      border-color: #3d4a66;
     }
-    .lang-tabs button.active {
-      background: #243056;
+    .lesson-list li button.active {
+      background: var(--accent-dim);
+      border-left-color: var(--accent);
       color: #dce6ff;
-      box-shadow: inset 0 -2px 0 var(--accent);
     }
-    .theory {
-      padding: 1rem 1.1rem 1.25rem;
-      overflow: auto;
-      max-height: calc(100vh - 180px);
-      line-height: 1.55;
-      font-size: 0.92rem;
-      color: #d5dbe8;
+    .lesson-list li button.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
-    .theory h1, .theory h2, .theory h3 {
-      color: var(--text);
-      margin: 1rem 0 0.4rem;
-      font-size: 1rem;
+    .lesson-list .num {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 650;
     }
-    .theory h1 { font-size: 1.15rem; margin-top: 0; }
-    .theory ul { padding-left: 1.2rem; }
-    .theory li { margin: 0.25rem 0; }
-    .theory code {
-      font-family: var(--mono);
-      font-size: 0.82rem;
-      background: #0c0e13;
-      padding: 0.1rem 0.35rem;
-      border-radius: 4px;
+    .lesson-list .title { font-weight: 550; line-height: 1.3; }
+    .lesson-list .soon {
+      font-size: 0.68rem;
+      color: var(--muted);
     }
-    .theory pre {
-      margin: 0.65rem 0 1rem;
-      background: #0c0e13;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0;
-      overflow: auto;
-    }
-    .theory pre code.hljs {
-      display: block;
-      padding: 0.85rem 0.95rem;
-      background: transparent;
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      line-height: 1.5;
-      border-radius: 8px;
-    }
-    .editor-wrap { display: flex; flex-direction: column; min-height: 560px; }
-    #editor {
-      height: 420px;
-      border-bottom: 1px solid var(--border);
-    }
+
+    /* CENTER: editor */
     .toolbar {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      padding: 0.75rem 1rem;
+      gap: 0.45rem;
+      padding: 0.55rem 0.85rem;
       border-bottom: 1px solid var(--border);
-      background: #12151c;
+      background: var(--panel-2);
+      flex-shrink: 0;
+      align-items: center;
     }
     button {
       font: inherit;
@@ -193,8 +185,8 @@
       border: 1px solid var(--border);
       background: #1d2330;
       color: var(--text);
-      padding: 0.45rem 0.85rem;
-      font-size: 0.88rem;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.84rem;
     }
     button:hover { border-color: #3d4a66; }
     button.primary {
@@ -211,110 +203,203 @@
     }
     .status {
       margin-left: auto;
-      align-self: center;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--muted);
     }
     .status.ok { color: var(--ok); }
     .status.fail { color: var(--fail); }
-    #out {
-      font-family: var(--mono);
-      font-size: 0.82rem;
-      padding: 0.9rem 1rem 1.2rem;
-      white-space: pre-wrap;
-      min-height: 140px;
-      max-height: 280px;
-      overflow: auto;
-      background: #0c0e13;
-      color: #c9d1e0;
-      margin: 0;
-    }
-    #out .ok { color: var(--ok); }
-    #out .fail { color: var(--fail); }
-    #out .dim { color: var(--muted); }
+
     .editor-stack {
       display: flex;
       flex-direction: column;
+      flex: 1;
       min-height: 0;
     }
     #editor {
-      height: 420px;
+      flex: 1;
+      min-height: 260px;
       border-bottom: 1px solid var(--border);
     }
-    .editor-wrap.with-solution #editor {
-      height: 280px;
+    .editor-stack.with-solution #editor {
+      flex: 0 0 45%;
+      min-height: 180px;
     }
     #solutionPanel {
       display: none;
       flex-direction: column;
+      flex: 1;
+      min-height: 160px;
       border-top: 1px solid var(--border);
       background: #0c0e13;
     }
-    #solutionPanel.open {
-      display: flex;
-    }
+    #solutionPanel.open { display: flex; }
     #solutionPanel .sol-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.5rem;
-      padding: 0.4rem 0.85rem;
+      padding: 0.35rem 0.85rem;
       border-bottom: 1px solid var(--border);
-      background: #12151c;
+      background: var(--panel-2);
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       font-weight: 650;
+      flex-shrink: 0;
     }
     #solutionPanel .sol-head button {
-      padding: 0.2rem 0.55rem;
-      font-size: 0.75rem;
+      padding: 0.18rem 0.5rem;
+      font-size: 0.72rem;
       text-transform: none;
       letter-spacing: 0;
       font-weight: 500;
     }
-    #solutionEditor {
-      height: 220px;
+    #solutionEditor { flex: 1; min-height: 140px; }
+    #out {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      padding: 0.7rem 0.9rem;
+      white-space: pre-wrap;
+      min-height: 110px;
+      max-height: 180px;
+      overflow: auto;
+      background: #0c0e13;
+      color: #c9d1e0;
+      margin: 0;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    footer {
-      text-align: center;
+    #out .ok { color: var(--ok); }
+    #out .fail { color: var(--fail); }
+    #out .dim { color: var(--muted); }
+
+    /* RIGHT: courseware */
+    .lang-tabs {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0c0e13;
+    }
+    .lang-tabs button {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       color: var(--muted);
+      padding: 0.26rem 0.65rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .lang-tabs button + button { border-left: 1px solid var(--border); }
+    .lang-tabs button:hover { color: var(--text); background: #1a2030; }
+    .lang-tabs button.active {
+      background: var(--accent-dim);
+      color: #dce6ff;
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+    .courseware {
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .theory {
+      padding: 0.9rem 1rem 0.5rem;
+      line-height: 1.55;
+      font-size: 0.9rem;
+      color: #d5dbe8;
+    }
+    .theory h1, .theory h2, .theory h3 {
+      color: var(--text);
+      margin: 0.9rem 0 0.35rem;
+      font-size: 0.95rem;
+    }
+    .theory h1 { font-size: 1.1rem; margin-top: 0; }
+    .theory ul { padding-left: 1.15rem; }
+    .theory li { margin: 0.22rem 0; }
+    .theory code {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      background: #0c0e13;
+      padding: 0.08rem 0.32rem;
+      border-radius: 4px;
+    }
+    .theory pre {
+      margin: 0.55rem 0 0.85rem;
+      background: #0c0e13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      overflow: auto;
+    }
+    .theory pre code.hljs {
+      display: block;
+      padding: 0.8rem 0.9rem;
+      background: transparent;
+      font-family: var(--mono);
       font-size: 0.78rem;
-      padding: 0.5rem 1rem 1.25rem;
+      line-height: 1.5;
+      border-radius: 8px;
+    }
+    .further {
+      border-top: 1px solid var(--border);
+      padding: 0.85rem 1rem 1.1rem;
+      background: #10131a;
+      flex-shrink: 0;
+    }
+    .further h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .further ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+    .further a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .further a:hover { text-decoration: underline; }
+    .further .note {
+      margin: 0.55rem 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
   <header>
     <h1>LangGraph Interactive</h1>
-    <span class="badge">Lesson 01 · Minimal StateGraph · GitHub Pages + Pyodide</span>
+    <span class="badge" id="headerBadge">Lesson 01 · Minimal StateGraph · Pages + Pyodide</span>
   </header>
   <div id="pyBanner" class="py-banner loading">Loading Python…</div>
 
   <div class="layout">
-    <section class="card">
-      <div class="card-head">
-        <h2 id="theoryTitle">Theory</h2>
-        <div class="lang-tabs" role="tablist" aria-label="Language">
-          <button type="button" role="tab" id="tab-zh" data-lang="zh" aria-selected="false">中文</button>
-          <button type="button" role="tab" id="tab-en" data-lang="en" aria-selected="false">EN</button>
-        </div>
-      </div>
-      <div class="theory" id="theory">Loading…</div>
-    </section>
+    <!-- LEFT: lesson list -->
+    <aside class="col-left" aria-label="Lessons">
+      <div class="col-head"><h2 id="lessonsTitle">Lessons</h2></div>
+      <ul class="lesson-list" id="lessonList"></ul>
+    </aside>
 
-    <section class="card editor-wrap">
-      <div class="card-head">
-        <h2>Your code</h2>
-      </div>
+    <!-- CENTER: editor -->
+    <section class="col-center" aria-label="Editor">
+      <div class="col-head"><h2 id="editorTitle">Your code</h2></div>
       <div class="toolbar">
         <button class="primary" id="btnRun" disabled>▶ Run grade</button>
-        <button id="btnReset">Reset to starter</button>
+        <button id="btnReset">Reset</button>
         <button id="btnSolution">Show solution</button>
         <span class="status" id="status">booting Python…</span>
       </div>
-      <div class="editor-stack">
+      <div class="editor-stack" id="editorStack">
         <div id="editor"></div>
         <div id="solutionPanel" aria-hidden="true">
           <div class="sol-head">
@@ -326,9 +411,26 @@
       </div>
       <pre id="out"><span class="dim">Python boots in the browser (Pyodide). Grade runs student code against mini_langgraph.</span></pre>
     </section>
-  </div>
 
-  <footer>Static site · no backend · Pyodide + mini_langgraph · Ctrl/Cmd+Enter to grade</footer>
+    <!-- RIGHT: courseware -->
+    <aside class="col-right" aria-label="Courseware">
+      <div class="col-head">
+        <h2 id="theoryTitle">Theory</h2>
+        <div class="lang-tabs" role="tablist" aria-label="Language">
+          <button type="button" role="tab" id="tab-zh" data-lang="zh" aria-selected="false">中文</button>
+          <button type="button" role="tab" id="tab-en" data-lang="en" aria-selected="false">EN</button>
+        </div>
+      </div>
+      <div class="courseware">
+        <div class="theory" id="theory">Loading…</div>
+        <div class="further" id="further">
+          <h3 id="furtherTitle">Further reading</h3>
+          <ul id="furtherList"></ul>
+          <p class="note" id="furtherNote"></p>
+        </div>
+      </div>
+    </aside>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -338,9 +440,83 @@
   <script src="js/grader.js"></script>
   <script>
     const LANG_KEY = "lgi.lang";
+    const LESSON_KEY = "lgi.lesson";
+
+    const LESSONS = [
+      {
+        id: "01",
+        active: true,
+        title: { zh: "最小状态图", en: "Minimal StateGraph" },
+        badge: "Lesson 01 · Minimal StateGraph · Pages + Pyodide",
+        further: {
+          zh: [
+            { label: "LangGraph 官方文档 · Graphs", href: "https://langchain-ai.github.io/langgraph/concepts/low_level/" },
+            { label: "StateGraph API 参考", href: "https://langchain-ai.github.io/langgraph/reference/graphs/" },
+            { label: "LangChain Academy · Intro to LangGraph", href: "https://academy.langchain.com/courses/intro-to-langgraph" },
+          ],
+          en: [
+            { label: "LangGraph docs · Graphs", href: "https://langchain-ai.github.io/langgraph/concepts/low_level/" },
+            { label: "StateGraph API reference", href: "https://langchain-ai.github.io/langgraph/reference/graphs/" },
+            { label: "LangChain Academy · Intro to LangGraph", href: "https://academy.langchain.com/courses/intro-to-langgraph" },
+          ],
+          note: {
+            zh: "本课用浏览器内 mini_langgraph 判题；真正的 langgraph 行为与此子集一致。",
+            en: "Grading uses in-browser mini_langgraph; real langgraph matches this subset for lesson 1.",
+          },
+        },
+      },
+      {
+        id: "02",
+        active: false,
+        title: { zh: "条件边（即将推出）", en: "Conditional edges (soon)" },
+      },
+      {
+        id: "03",
+        active: false,
+        title: { zh: "Reducer 合并（即将推出）", en: "Reducers (soon)" },
+      },
+      {
+        id: "04",
+        active: false,
+        title: { zh: "ReAct + FakeModel（即将推出）", en: "ReAct + FakeModel (soon)" },
+      },
+      {
+        id: "05",
+        active: false,
+        title: { zh: "Checkpoint（即将推出）", en: "Checkpoints (soon)" },
+      },
+      {
+        id: "06",
+        active: false,
+        title: { zh: "Human-in-the-loop（即将推出）", en: "Human-in-the-loop (soon)" },
+      },
+    ];
+
     const UI = {
-      en: { theoryTitle: "Theory", loading: "Loading…" },
-      zh: { theoryTitle: "理论", loading: "加载中…" },
+      en: {
+        lessonsTitle: "Lessons",
+        editorTitle: "Your code",
+        theoryTitle: "Theory",
+        furtherTitle: "Further reading",
+        loading: "Loading…",
+        soon: "Coming soon",
+        run: "▶ Run grade",
+        reset: "Reset",
+        showSol: "Show solution",
+        hideSol: "Hide solution",
+      },
+      zh: {
+        lessonsTitle: "课程列表",
+        editorTitle: "你的代码",
+        theoryTitle: "课件",
+        furtherTitle: "拓展阅读",
+        loading: "加载中…",
+        soon: "即将推出",
+        run: "▶ 运行判题",
+        reset: "重置",
+        showSol: "查看解答",
+        hideSol: "隐藏解答",
+      },
     };
 
     let starter = "";
@@ -348,19 +524,22 @@
     let showingSolution = false;
     let editor = null;
     let solutionEditor = null;
+    let currentLesson = LESSONS.find(l => l.active) || LESSONS[0];
     let lang = localStorage.getItem(LANG_KEY) || "zh";
     if (lang !== "zh" && lang !== "en") lang = "zh";
+
+    function t() { return UI[lang]; }
 
     function setSolutionVisible(open) {
       showingSolution = !!open;
       const panel = document.getElementById("solutionPanel");
-      const wrap = document.querySelector(".editor-wrap");
+      const stack = document.getElementById("editorStack");
       const btn = document.getElementById("btnSolution");
       panel.classList.toggle("open", showingSolution);
       panel.setAttribute("aria-hidden", showingSolution ? "false" : "true");
-      wrap.classList.toggle("with-solution", showingSolution);
+      stack.classList.toggle("with-solution", showingSolution);
       btn.classList.toggle("active", showingSolution);
-      btn.textContent = showingSolution ? "Hide solution" : "Show solution";
+      btn.textContent = showingSolution ? t().hideSol : t().showSol;
       if (showingSolution && solutionEditor) {
         solutionEditor.setValue(solution || "");
         solutionEditor.layout();
@@ -389,20 +568,73 @@
       })[c]);
     }
 
-    function syncLangTabs() {
+    function syncChrome() {
+      document.getElementById("lessonsTitle").textContent = t().lessonsTitle;
+      document.getElementById("editorTitle").textContent = t().editorTitle;
+      document.getElementById("theoryTitle").textContent = t().theoryTitle;
+      document.getElementById("furtherTitle").textContent = t().furtherTitle;
+      document.getElementById("btnRun").textContent = t().run;
+      document.getElementById("btnReset").textContent = t().reset;
+      document.getElementById("btnSolution").textContent =
+        showingSolution ? t().hideSol : t().showSol;
+      document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
       document.querySelectorAll(".lang-tabs button").forEach(btn => {
         const on = btn.dataset.lang === lang;
         btn.classList.toggle("active", on);
         btn.setAttribute("aria-selected", on ? "true" : "false");
       });
-      document.getElementById("theoryTitle").textContent = UI[lang].theoryTitle;
-      document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+      renderLessonList();
+      renderFurther();
+      if (currentLesson.badge) {
+        document.getElementById("headerBadge").textContent = currentLesson.badge;
+      }
+    }
+
+    function renderLessonList() {
+      const ul = document.getElementById("lessonList");
+      ul.innerHTML = LESSONS.map(lesson => {
+        const active = lesson.id === currentLesson.id;
+        const disabled = !lesson.active;
+        const classes = [
+          active ? "active" : "",
+          disabled ? "disabled" : "",
+        ].filter(Boolean).join(" ");
+        const soon = disabled
+          ? `<span class="soon">${escapeHtml(t().soon)}</span>`
+          : "";
+        return `<li>
+          <button type="button" class="${classes}" data-id="${lesson.id}" ${disabled ? "disabled" : ""}>
+            <span class="num">Lesson ${escapeHtml(lesson.id)}</span>
+            <span class="title">${escapeHtml(lesson.title[lang] || lesson.title.en)}</span>
+            ${soon}
+          </button>
+        </li>`;
+      }).join("");
+      ul.querySelectorAll("button[data-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const lesson = LESSONS.find(l => l.id === btn.dataset.id);
+          if (!lesson || !lesson.active) return;
+          if (lesson.id === currentLesson.id) return;
+          currentLesson = lesson;
+          localStorage.setItem(LESSON_KEY, lesson.id);
+          syncChrome();
+          loadLessonAssets();
+        });
+      });
+    }
+
+    function renderFurther() {
+      const f = (currentLesson.further && currentLesson.further[lang]) || [];
+      const note = (currentLesson.further && currentLesson.further.note && currentLesson.further.note[lang]) || "";
+      document.getElementById("furtherList").innerHTML = f.map(item =>
+        `<li><a href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.label)}</a></li>`
+      ).join("") || `<li class="dim" style="color:var(--muted)">${escapeHtml(t().soon)}</li>`;
+      document.getElementById("furtherNote").textContent = note;
     }
 
     function highlightTheory() {
       const root = document.getElementById("theory");
       root.querySelectorAll("pre code").forEach(block => {
-        // marked leaves language-xxx class; ensure python when unmarked but looks like it
         if (![...block.classList].some(c => c.startsWith("language-"))) {
           block.classList.add("language-python");
         }
@@ -412,8 +644,8 @@
 
     async function renderTheory() {
       const theoryEl = document.getElementById("theory");
-      theoryEl.textContent = UI[lang].loading;
-      const res = await fetch(`lessons/01/theory.${lang}.md`);
+      theoryEl.textContent = t().loading;
+      const res = await fetch(`lessons/${currentLesson.id}/theory.${lang}.md`);
       if (!res.ok) throw new Error(`theory.${lang}.md HTTP ${res.status}`);
       const md = await res.text();
       theoryEl.innerHTML = marked.parse(md || "");
@@ -422,18 +654,27 @@
 
     async function loadStarterSolution() {
       const [sRes, solRes] = await Promise.all([
-        fetch("lessons/01/starter.py"),
-        fetch("lessons/01/solution.py"),
+        fetch(`lessons/${currentLesson.id}/starter.py`),
+        fetch(`lessons/${currentLesson.id}/solution.py`),
       ]);
       starter = await sRes.text();
       solution = await solRes.text();
-      // Only seed the student editor on first load — never clobber edits.
-      if (editor && !editor.getValue().trim()) {
-        editor.setValue(starter);
-      } else if (editor && editor.getValue() === "# loading…") {
-        editor.setValue(starter);
+      if (editor) {
+        const cur = editor.getValue();
+        if (!cur.trim() || cur === "# loading…") {
+          editor.setValue(starter);
+        }
       }
       if (solutionEditor) solutionEditor.setValue(solution);
+    }
+
+    async function loadLessonAssets() {
+      try {
+        await Promise.all([renderTheory(), loadStarterSolution()]);
+      } catch (err) {
+        document.getElementById("theory").innerHTML =
+          `<span style="color:var(--fail)">❌ ${escapeHtml(String(err))}</span>`;
+      }
     }
 
     function initMonaco() {
@@ -475,7 +716,7 @@
         if (next === lang) return;
         lang = next;
         localStorage.setItem(LANG_KEY, lang);
-        syncLangTabs();
+        syncChrome();
         try {
           await renderTheory();
         } catch (err) {
@@ -526,7 +767,12 @@
     });
 
     (async function boot() {
-      syncLangTabs();
+      const saved = localStorage.getItem(LESSON_KEY);
+      if (saved) {
+        const found = LESSONS.find(l => l.id === saved && l.active);
+        if (found) currentLesson = found;
+      }
+      syncChrome();
       try {
         await Promise.all([renderTheory(), loadStarterSolution()]);
         initMonaco();
