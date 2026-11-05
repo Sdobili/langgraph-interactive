@@ -19,6 +19,8 @@ cd docs && python3 -m http.server 8080
 
 On first load the banner shows **Loading Python…** while Pyodide boots from the CDN. Then **Run grade** executes your code inside that runtime against `mini_langgraph.py` (no server process).
 
+Theory panel: **中文 | EN** tabs (persisted in `localStorage`), skeleton code highlighted with highlight.js (github-dark).
+
 ## Lesson 01 contract
 
 | Piece | Spec |
@@ -45,11 +47,12 @@ Student imports stay the same (`from langgraph.graph import StateGraph, START, E
 
 ```
 docs/                         # ← GitHub Pages root
-  index.html                  # UI + Pyodide boot banner
+  index.html                  # UI + CN|EN theory tabs + highlight.js
   mini_langgraph.py           # pure-Python StateGraph subset
   js/grader.js                # load Pyodide, run asserts
   lessons/01/
-    starter.py  solution.py  theory.md
+    starter.py  solution.py
+    theory.en.md  theory.zh.md
 lessons/01_minimal_graph/     # same lesson for optional CLI harness
 harness/                      # optional local CLI (needs langgraph installed)
 web/                          # optional FastAPI UI (not required for Pages)
