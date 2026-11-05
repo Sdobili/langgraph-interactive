@@ -22,6 +22,7 @@
       --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --sans: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
       --left: 220px;
+      --left-collapsed: 44px;
       --right: minmax(300px, 0.95fr);
       --center: minmax(420px, 1.35fr);
     }
@@ -80,13 +81,56 @@
       gap: 0;
       min-height: 0;
       max-height: calc(100vh - 88px);
+      transition: grid-template-columns 0.2s ease;
+    }
+    .layout.sidebar-collapsed {
+      grid-template-columns: var(--left-collapsed) var(--center) var(--right);
+    }
+    .layout.sidebar-collapsed .col-left .lesson-list,
+    .layout.sidebar-collapsed .col-left .col-head h2 {
+      display: none;
+    }
+    .layout.sidebar-collapsed .col-left .col-head {
+      justify-content: center;
+      padding: 0.55rem 0.25rem;
+    }
+    .sidebar-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.85rem;
+      height: 1.85rem;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #1d2330;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sidebar-toggle:hover {
+      color: var(--text);
+      border-color: #3d4a66;
+    }
+    .sidebar-toggle .icon-expand { display: none; }
+    .layout.sidebar-collapsed .sidebar-toggle .icon-collapse { display: none; }
+    .layout.sidebar-collapsed .sidebar-toggle .icon-expand { display: inline; }
+    header .sidebar-toggle-header {
+      margin-right: 0.35rem;
     }
     @media (max-width: 1100px) {
-      .layout {
+      .layout,
+      .layout.sidebar-collapsed {
         grid-template-columns: 1fr;
         max-height: none;
       }
       .col-left { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .layout.sidebar-collapsed .col-left {
+        max-height: 2.55rem;
+        overflow: hidden;
+      }
+      .layout.sidebar-collapsed .col-left .lesson-list { display: none; }
       .col-center, .col-right { min-height: 520px; border-right: 0; }
       .col-right { border-top: 1px solid var(--border); }
     }
@@ -378,15 +422,27 @@
 </head>
 <body>
   <header>
-    <h1>LangGraph Interactive</h1>
+    <div style="display:flex;align-items:center;gap:0.55rem;min-width:0;">
+      <button type="button" class="sidebar-toggle sidebar-toggle-header" id="btnSidebar" aria-controls="lessonSidebar" aria-expanded="true" title="Collapse lessons">
+        <span class="icon-collapse" aria-hidden="true">«</span>
+        <span class="icon-expand" aria-hidden="true">»</span>
+      </button>
+      <h1>LangGraph Interactive</h1>
+    </div>
     <span class="badge" id="headerBadge">Lesson 01 · Minimal StateGraph · Pages + Pyodide</span>
   </header>
   <div id="pyBanner" class="py-banner loading">Loading Python…</div>
 
   <div class="layout">
     <!-- LEFT: lesson list -->
-    <aside class="col-left" aria-label="Lessons">
-      <div class="col-head"><h2 id="lessonsTitle">Lessons</h2></div>
+    <aside class="col-left" id="lessonSidebar" aria-label="Lessons">
+      <div class="col-head">
+        <h2 id="lessonsTitle">Lessons</h2>
+        <button type="button" class="sidebar-toggle" id="btnSidebarSide" aria-controls="lessonSidebar" aria-expanded="true" title="Collapse lessons">
+          <span class="icon-collapse" aria-hidden="true">«</span>
+          <span class="icon-expand" aria-hidden="true">»</span>
+        </button>
+      </div>
       <ul class="lesson-list" id="lessonList"></ul>
     </aside>
 
@@ -441,6 +497,7 @@
   <script>
     const LANG_KEY = "lgi.lang";
     const LESSON_KEY = "lgi.lesson";
+    const SIDEBAR_KEY = "lgi.sidebarCollapsed";
 
     const LESSONS = [
       {
@@ -504,6 +561,8 @@
         reset: "Reset",
         showSol: "Show solution",
         hideSol: "Hide solution",
+        collapseSidebar: "Collapse lessons",
+        expandSidebar: "Expand lessons",
       },
       zh: {
         lessonsTitle: "课程列表",
@@ -516,6 +575,8 @@
         reset: "重置",
         showSol: "查看解答",
         hideSol: "隐藏解答",
+        collapseSidebar: "收起课程列表",
+        expandSidebar: "展开课程列表",
       },
     };
 
@@ -547,6 +608,23 @@
       if (editor) editor.layout();
     }
 
+    let sidebarCollapsed = localStorage.getItem(SIDEBAR_KEY) === "1";
+
+    function setSidebarCollapsed(collapsed) {
+      sidebarCollapsed = !!collapsed;
+      localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? "1" : "0");
+      const layout = document.querySelector(".layout");
+      layout.classList.toggle("sidebar-collapsed", sidebarCollapsed);
+      const label = sidebarCollapsed ? t().expandSidebar : t().collapseSidebar;
+      document.querySelectorAll("#btnSidebar, #btnSidebarSide").forEach(btn => {
+        btn.setAttribute("aria-expanded", sidebarCollapsed ? "false" : "true");
+        btn.setAttribute("title", label);
+        btn.setAttribute("aria-label", label);
+      });
+      if (editor) editor.layout();
+      if (solutionEditor) solutionEditor.layout();
+    }
+
     function setStatus(text, cls) {
       const el = document.getElementById("status");
       el.textContent = text;
@@ -570,6 +648,11 @@
 
     function syncChrome() {
       document.getElementById("lessonsTitle").textContent = t().lessonsTitle;
+      const sideLabel = sidebarCollapsed ? t().expandSidebar : t().collapseSidebar;
+      document.querySelectorAll("#btnSidebar, #btnSidebarSide").forEach(btn => {
+        btn.setAttribute("title", sideLabel);
+        btn.setAttribute("aria-label", sideLabel);
+      });
       document.getElementById("editorTitle").textContent = t().editorTitle;
       document.getElementById("theoryTitle").textContent = t().theoryTitle;
       document.getElementById("furtherTitle").textContent = t().furtherTitle;
@@ -765,6 +848,14 @@
         if (!btn.disabled) btn.click();
       }
     });
+
+    document.getElementById("btnSidebar").onclick = () => {
+      setSidebarCollapsed(!sidebarCollapsed);
+    };
+    document.getElementById("btnSidebarSide").onclick = () => {
+      setSidebarCollapsed(!sidebarCollapsed);
+    };
+    setSidebarCollapsed(sidebarCollapsed);
 
     (async function boot() {
       const saved = localStorage.getItem(LESSON_KEY);
