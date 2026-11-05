@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LangGraph Interactive · Lesson 01</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --border: #2a3040;
+      --text: #e8ecf4;
+      --muted: #9aa3b5;
+      --accent: #7c9cff;
+      --ok: #3ecf8e;
+      --fail: #ff6b7a;
+      --warn: #f0c674;
+      --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 10% -10%, #1a2240 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15,17,21,0.85);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 650;
+      letter-spacing: 0.01em;
+    }
+    header .badge {
+      font-size: 0.75rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+    }
+    .py-banner {
+      width: 100%;
+      font-size: 0.82rem;
+      padding: 0.45rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: #12151c;
+      color: var(--warn);
+    }
+    .py-banner.loading { color: var(--warn); }
+    .py-banner.ready { color: var(--ok); }
+    .py-banner.fail { color: var(--fail); }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.4fr);
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .card h2 {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .theory {
+      padding: 1rem 1.1rem 1.25rem;
+      overflow: auto;
+      max-height: calc(100vh - 180px);
+      line-height: 1.55;
+      font-size: 0.92rem;
+      color: #d5dbe8;
+    }
+    .theory h1, .theory h2, .theory h3 {
+      color: var(--text);
+      margin: 1rem 0 0.4rem;
+      font-size: 1rem;
+    }
+    .theory h1 { font-size: 1.15rem; margin-top: 0; }
+    .theory code, .theory pre {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+    .theory pre {
+      background: #0c0e13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      overflow: auto;
+    }
+    .theory code {
+      background: #0c0e13;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+    }
+    .editor-wrap { display: flex; flex-direction: column; min-height: 560px; }
+    #editor {
+      height: 420px;
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: #12151c;
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #1d2330;
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.88rem;
+    }
+    button:hover { border-color: #3d4a66; }
+    button.primary {
+      background: linear-gradient(180deg, #6d8fff, #5676e8);
+      border-color: transparent;
+      color: #0b1020;
+      font-weight: 650;
+    }
+    button.primary:hover { filter: brightness(1.06); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .status {
+      margin-left: auto;
+      align-self: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--ok); }
+    .status.fail { color: var(--fail); }
+    #out {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      padding: 0.9rem 1rem 1.2rem;
+      white-space: pre-wrap;
+      min-height: 140px;
+      max-height: 280px;
+      overflow: auto;
+      background: #0c0e13;
+      color: #c9d1e0;
+      margin: 0;
+    }
+    #out .ok { color: var(--ok); }
+    #out .fail { color: var(--fail); }
+    #out .dim { color: var(--muted); }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding: 0.5rem 1rem 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LangGraph Interactive</h1>
+    <span class="badge">Lesson 01 · Minimal StateGraph · GitHub Pages + Pyodide</span>
+  </header>
+  <div id="pyBanner" class="py-banner loading">Loading Python…</div>
+
+  <div class="layout">
+    <section class="card">
+      <h2>Theory</h2>
+      <div class="theory" id="theory">Loading…</div>
+    </section>
+
+    <section class="card editor-wrap">
+      <h2>Your code · <span id="modeLabel">starter</span></h2>
+      <div class="toolbar">
+        <button class="primary" id="btnRun" disabled>▶ Run grade</button>
+        <button id="btnReset">Reset to starter</button>
+        <button id="btnSolution">Show solution</button>
+        <span class="status" id="status">booting Python…</span>
+      </div>
+      <div id="editor"></div>
+      <pre id="out"><span class="dim">Python boots in the browser (Pyodide). Grade runs student code against mini_langgraph.</span></pre>
+    </section>
+  </div>
+
+  <footer>Static site · no backend · Pyodide + mini_langgraph · Ctrl/Cmd+Enter to grade</footer>
+
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script src="js/grader.js"></script>
+  <script>
+    let starter = "";
+    let solution = "";
+    let showingSolution = false;
+    let editor = null;
+
+    function setStatus(text, cls) {
+      const el = document.getElementById("status");
+      el.textContent = text;
+      el.className = "status" + (cls ? " " + cls : "");
+    }
+
+    function renderOut(lines, ok) {
+      const out = document.getElementById("out");
+      out.innerHTML = (lines || []).map(line => {
+        const cls = line.includes("✅") ? "ok" : (line.includes("❌") ? "fail" : "dim");
+        return `<span class="${cls}">${escapeHtml(line)}</span>`;
+      }).join("\n");
+      setStatus(ok ? "PASS" : "FAIL", ok ? "ok" : "fail");
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      })[c]);
+    }
+
+    async function loadLesson() {
+      const [tRes, sRes, solRes] = await Promise.all([
+        fetch("lessons/01/theory.md"),
+        fetch("lessons/01/starter.py"),
+        fetch("lessons/01/solution.py"),
+      ]);
+      const theory = await tRes.text();
+      starter = await sRes.text();
+      solution = await solRes.text();
+      document.getElementById("theory").innerHTML = marked.parse(theory || "");
+      if (editor) editor.setValue(starter);
+    }
+
+    function initMonaco() {
+      require.config({
+        paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" }
+      });
+      require(["vs/editor/editor.main"], function () {
+        editor = monaco.editor.create(document.getElementById("editor"), {
+          value: starter || "# loading…",
+          language: "python",
+          theme: "vs-dark",
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 13,
+          fontFamily: "JetBrains Mono, ui-monospace, Menlo, Consolas, monospace",
+          scrollBeyondLastLine: false,
+          tabSize: 4,
+        });
+      });
+    }
+
+    document.getElementById("btnReset").onclick = () => {
+      showingSolution = false;
+      document.getElementById("btnSolution").classList.remove("active");
+      document.getElementById("modeLabel").textContent = "starter";
+      if (editor) {
+        editor.setValue(starter);
+        editor.updateOptions({ readOnly: false });
+      }
+      setStatus("reset", "");
+    };
+
+    document.getElementById("btnSolution").onclick = () => {
+      showingSolution = !showingSolution;
+      const btn = document.getElementById("btnSolution");
+      btn.classList.toggle("active", showingSolution);
+      document.getElementById("modeLabel").textContent = showingSolution ? "solution (read-only)" : "starter";
+      if (editor) {
+        editor.setValue(showingSolution ? solution : starter);
+        editor.updateOptions({ readOnly: showingSolution });
+      }
+    };
+
+    document.getElementById("btnRun").onclick = async () => {
+      if (!editor) return;
+      const btn = document.getElementById("btnRun");
+      btn.disabled = true;
+      setStatus("grading…", "");
+      document.getElementById("out").innerHTML = '<span class="dim">Running grader in Pyodide…</span>';
+      try {
+        const data = await LGGrader.grade(editor.getValue());
+        renderOut(data.lines || [], !!data.ok);
+      } catch (err) {
+        renderOut(["❌ Request failed: " + err], false);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        const btn = document.getElementById("btnRun");
+        if (!btn.disabled) btn.click();
+      }
+    });
+
+    (async function boot() {
+      try {
+        await loadLesson();
+        initMonaco();
+        await LGGrader.ensurePyodide();
+        document.getElementById("btnRun").disabled = false;
+        setStatus("ready", "ok");
+        document.getElementById("out").innerHTML =
+          '<span class="dim">Python ready. Edit the starter and click Run grade (or Ctrl/Cmd+Enter).</span>';
+      } catch (err) {
+        setStatus("boot failed", "fail");
+        document.getElementById("out").innerHTML =
+          '<span class="fail">❌ Failed to boot: ' + escapeHtml(String(err)) + "</span>";
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,48 +1,23 @@
-# LangGraph Interactive — Lesson 01 MVP
+# LangGraph Interactive — Lesson 01
 
-FastAPI-Interactive-style grader for LangGraph. No API keys. Lesson 1 is a pure `StateGraph` (no LLM).
+FastAPI-Interactive-style lesson: edit a minimal `StateGraph` in the browser, grade it with **Pyodide** (Python in the browser) + a tiny `mini_langgraph` shim. **No API keys. No backend.**
 
-## Open a live demo
+## Open the live site (GitHub Pages)
 
-| Path | Works? | Notes |
-|------|--------|--------|
-| **GitHub Pages** | **No** | Pages is static only. This app needs FastAPI + a Python subprocess to grade LangGraph code. |
-| **Render (Docker, free)** | **Yes (recommended)** | Connect this repo → Deploy Blueprint / Web Service. Public `*.onrender.com` URL. Free tier sleeps after idle. |
-| **GitHub Codespaces** | **Yes** | Green **Code → Codespaces → Create**. Dev container installs deps and starts uvicorn on **8765**; use the forwarded URL. |
-| **Fly.io** | Yes (account) | `fly launch` / `fly deploy` with included `fly.toml`. Needs a Fly account. |
-| **Local / Tailscale Funnel** | Interim | `uvicorn web.app:app --host 0.0.0.0 --port 8765` |
+1. Repo → **Settings → Pages**
+2. **Build and deployment → Source**: Deploy from a branch
+3. Branch: **`main`** / folder: **`/docs`**
+4. Save, wait ~1 minute, open:
+   - `https://sdobili.github.io/langgraph-interactive/`
 
-### Render one-click (public URL)
-
-1. Open [Render Dashboard → New → Blueprint](https://dashboard.render.com/blueprints) (or Web Service).
-2. Connect GitHub and select **`Sdobili/langgraph-interactive`**.
-3. Accept `render.yaml` (Docker, port 8765, free plan).
-4. Wait for build; open the `*.onrender.com` URL.
-
-Cold starts on free tier can take ~30–60s.
-
-### Codespaces one-click
-
-1. On this repo: **Code → Codespaces → Create codespace on main**.
-2. After attach, uvicorn should be on port **8765**.
-3. Click the Ports tab → open the public forwarded URL.
-
-## Local setup
+Local preview of the same static site:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn web.app:app --host 0.0.0.0 --port 8765
-# open http://127.0.0.1:8765/
+cd docs && python3 -m http.server 8080
+# open http://127.0.0.1:8080/
 ```
 
-CLI grader:
-
-```bash
-python -m harness.grade 01
-python -m harness.grade 01 --solution
-```
+On first load the banner shows **Loading Python…** while Pyodide boots from the CDN. Then **Run grade** executes your code inside that runtime against `mini_langgraph.py` (no server process).
 
 ## Lesson 01 contract
 
@@ -53,19 +28,42 @@ python -m harness.grade 01 --solution
 | Edges | `START → inc → double → END` |
 | Check | `invoke({"count": 3})` → `{"count": 8}` |
 
+## How grading works (Pages-only)
+
+```
+Browser
+  ├─ Monaco editor (student Python)
+  ├─ Pyodide (CPython WASM from CDN)
+  │    ├─ mini_langgraph.py  → aliased as langgraph.graph
+  │    └─ exec(student) → build_graph().invoke(...)
+  └─ assert cases → PASS / FAIL
+```
+
+Student imports stay the same (`from langgraph.graph import StateGraph, START, END`). The shim installs itself as that module before `exec`.
+
 ## Layout
 
 ```
-langgraph-interactive/
-  Dockerfile          # production image
-  render.yaml         # Render Blueprint (free web)
-  fly.toml            # optional Fly.io
-  .devcontainer/      # Codespaces
-  harness/            # grader
-  lessons/01_minimal_graph/
-  web/                # FastAPI UI + /api/grade
+docs/                         # ← GitHub Pages root
+  index.html                  # UI + Pyodide boot banner
+  mini_langgraph.py           # pure-Python StateGraph subset
+  js/grader.js                # load Pyodide, run asserts
+  lessons/01/
+    starter.py  solution.py  theory.md
+lessons/01_minimal_graph/     # same lesson for optional CLI harness
+harness/                      # optional local CLI (needs langgraph installed)
+web/                          # optional FastAPI UI (not required for Pages)
 ```
 
-## Why not GitHub Pages / Actions static deploy?
+## Optional: CLI grader (real langgraph)
 
-The UI is HTML + Monaco, but **Run grade** POSTs to `/api/grade`, which writes a temp file and runs `python -m harness.grade_submission` with **langgraph** installed. GitHub Pages cannot run that backend. A Pages-only deploy would show the editor with a dead Grade button.
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m harness.grade 01
+python -m harness.grade 01 --solution
+```
+
+## Optional: FastAPI UI
+
+Still available under `web/` if you want a server-side grader, but **Pages does not use it**.
