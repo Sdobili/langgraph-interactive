@@ -1,26 +1,28 @@
-# 03 — Reducer 合并
+# 03 — 累积检索片段
 
 ## 要点
-- 默认情况下，返回的键会**覆盖**该字段。第 01 课就是这样。
-- Reducer 把旧值和本次更新**合并**。
-- `Annotated[list, operator.add]` 会把列表接起来（`left + right`）。
-- 没有 reducer 的字段（这里的 `total`）仍然是覆盖。
-
-Reducer 写在 **schema** 上，不要写进节点里。每个节点只返回自己新增的那一段。
+- 返回的键会覆盖该字段。`draft` 就该这样：撰写节点换掉检索节点的占位句。
+- Reducer 把旧值和本次更新合并。`passages` 必须留下每一次命中。
+- `Annotated[list, operator.add]` 拼接列表。写在 schema 上。每个节点只返回自己找到的片段。
 
 ## 契约
 
 ```text
-State:  log: Annotated[list, operator.add]，total: int
-Nodes:  push_a 追加 ["a"] 且 +1；push_b 追加 ["b"] 且 +10
-Edges:  START → push_a → push_b → END
-invoke({"log": [], "total": 0})
-    == {"log": ["a", "b"], "total": 11}
-invoke({"log": ["seed"], "total": 5})
-    == {"log": ["seed", "a", "b"], "total": 16}
+START → retrieve → write → END
+
+retrieve  追加 {"source": "faq", "text": query}
+          把 draft 设为 "Looking up the policy."
+write     追加 {"source": "policy", "text": "Refunds are allowed within 30 days."}
+          把 draft 设为同一句话
+
+query 为 "What is the refund window?" 且 passages 为 []
+  → 先 faq，再 policy
+  → draft == "Refunds are allowed within 30 days."
+
+如果 passages 里已经有一条工单笔记，它留在最前面。
 ```
 
-输入里必须已经有 `log`。`operator.add` 不能从缺失值开始（`None + ["a"]` 是 Python 错误）。
+输入里必须已经有 `passages`。`operator.add` 不能从缺失值开始。
 
 ## 骨架
 
@@ -30,26 +32,33 @@ from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, START, END
 
 class State(TypedDict):
-    log: Annotated[list, operator.add]
-    total: int
+    query: str
+    passages: Annotated[list, operator.add]
+    draft: str
 
-def push_a(state: State) -> dict:
-    return {"log": ["a"], "total": state["total"] + 1}
+def retrieve(state: State) -> dict:
+    return {
+        "passages": [{"source": "faq", "text": state["query"]}],
+        "draft": "Looking up the policy.",
+    }
 
-def push_b(state: State) -> dict:
-    return {"log": ["b"], "total": state["total"] + 10}
+def write(state: State) -> dict:
+    return {
+        "passages": [{"source": "policy", "text": "Refunds are allowed within 30 days."}],
+        "draft": "Refunds are allowed within 30 days.",
+    }
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("push_a", push_a)
-    g.add_node("push_b", push_b)
-    g.add_edge(START, "push_a")
-    g.add_edge("push_a", "push_b")
-    g.add_edge("push_b", END)
+    g.add_node("retrieve", retrieve)
+    g.add_node("write", write)
+    g.add_edge(START, "retrieve")
+    g.add_edge("retrieve", "write")
+    g.add_edge("write", END)
     return g.compile()
 ```
 
 ## 教学子集
-- `Annotated` 元数据里的第一个可调用对象就是 reducer，和 LangGraph 常见写法一致。
-- 本页在 `build_graph()` 编译时读取注解。普通 `list` 注解会覆盖，所以 starter 过不了。
-- 这里还没有并行 fan-in。两个顺序节点写同一个带 reducer 的键，就是这一课的全部内容。
+- `Annotated` 元数据里的第一个可调用对象就是 reducer。
+- 判题在 `build_graph()` 编译时读取这些注解。普通 `list` 会丢掉 faq 命中，这就是 starter 的失败原因。
+- 两个顺序节点就够了。本子集没有并行 fan-in。

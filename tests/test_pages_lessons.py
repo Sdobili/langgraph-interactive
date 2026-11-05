@@ -19,11 +19,11 @@ LESSONS = ["01", "02", "03", "04", "05", "06"]
 # A substring that only appears once the starter is graded helpfully.
 STARTER_HINT = {
     "01": "returned None",
-    "02": "negative",
-    "03": '"a"',
+    "02": "engineering",
+    "03": "faq",
     "04": "GraphRecursionError",
-    "05": "echo: hi",
-    "06": '"count": 2',
+    "05": "Can I get a refund?",
+    "06": "What is the order id?",
 }
 
 THEORY_MARKERS = {

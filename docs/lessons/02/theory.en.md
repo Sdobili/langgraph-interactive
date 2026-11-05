@@ -1,24 +1,24 @@
-# 02 — Conditional edges
+# 02 — Route a support ticket
 
 ## What you learn
-- A normal edge always goes to one next node.
-- `add_conditional_edges(source, path, path_map)` chooses the next node from state.
-- `path(state)` returns a key. `path_map` maps that key to a node name (or `END`).
-- Omit `path_map` and the string you return **is** the next node. Lesson 04 does that.
-- Branch nodes are ordinary functions. Only the router is special.
+- A normal edge always enters the same node. A desk that always lands in billing is that edge.
+- `add_conditional_edges(source, path, path_map)` reads state and picks the next node.
+- `path(state)` returns a key such as `"engineering"`. `path_map` turns that key into a node name.
+- The assign nodes only record the decision. The router is the conditional edge.
 
 ## Contract
 
 ```text
-State:   {"n": int, "label": str}
-path:    n > 0 → "pos", n < 0 → "neg", else → "zero"
-map:     pos → positive, neg → negative, zero → zero
-invoke({"n": 4, "label": ""})   == {"n": 4, "label": "positive"}
-invoke({"n": -3, "label": ""})  == {"n": -3, "label": "negative"}
-invoke({"n": 0, "label": ""})   == {"n": 0, "label": "zero"}
+billing      ticket mentions refund, invoice, or charge
+engineering  ticket mentions error, crash, or bug
+general      otherwise
+
+"Please refund invoice 1042."     → team "billing"
+"Login crashes with error 500."   → team "engineering"
+"Where is the status page?"       → team "general"
 ```
 
-Export `build_graph()` and return `g.compile()`.
+Leave `ticket` unchanged. Export `build_graph()` and return `g.compile()`.
 
 ## Skeleton
 
@@ -27,42 +27,47 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, START, END
 
 class State(TypedDict):
-    n: int
-    label: str
+    ticket: str
+    team: str
 
 def route(state: State) -> str:
-    if state["n"] > 0:
-        return "pos"
-    if state["n"] < 0:
-        return "neg"
-    return "zero"
+    text = state["ticket"].lower()
+    if any(word in text for word in ("refund", "invoice", "charge")):
+        return "billing"
+    if any(word in text for word in ("error", "crash", "bug")):
+        return "engineering"
+    return "general"
 
-def positive(state: State) -> dict:
-    return {"label": "positive"}
+def assign_billing(state: State) -> dict:
+    return {"team": "billing"}
 
-def negative(state: State) -> dict:
-    return {"label": "negative"}
+def assign_engineering(state: State) -> dict:
+    return {"team": "engineering"}
 
-def zero(state: State) -> dict:
-    return {"label": "zero"}
+def assign_general(state: State) -> dict:
+    return {"team": "general"}
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("positive", positive)
-    g.add_node("negative", negative)
-    g.add_node("zero", zero)
+    g.add_node("assign_billing", assign_billing)
+    g.add_node("assign_engineering", assign_engineering)
+    g.add_node("assign_general", assign_general)
     g.add_conditional_edges(
         START,
         route,
-        {"pos": "positive", "neg": "negative", "zero": "zero"},
+        {
+            "billing": "assign_billing",
+            "engineering": "assign_engineering",
+            "general": "assign_general",
+        },
     )
-    g.add_edge("positive", END)
-    g.add_edge("negative", END)
-    g.add_edge("zero", END)
+    g.add_edge("assign_billing", END)
+    g.add_edge("assign_engineering", END)
+    g.add_edge("assign_general", END)
     return g.compile()
 ```
 
 ## Teaching subset
-- One destination per step. Returning a list (`Send` / parallel fan-out) raises `TypeError`.
-- A node has either one normal edge or one conditional edge, not both.
-- The path function sees state **after** that node's update is merged. This lesson routes from `START`, before any node runs.
+- One destination per step. A list return (`Send`, parallel fan-out) raises `TypeError`.
+- A node has one normal edge or one conditional edge, not both.
+- `route` sees state after the source node’s update. This graph routes from `START`, before any node runs.
