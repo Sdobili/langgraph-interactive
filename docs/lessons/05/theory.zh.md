@@ -1,28 +1,30 @@
-# 05 — 消息与假模型回声
+# 05 — 重写助手草稿
 
 ## 要点
-- 对话 state 是普通 dict 列表：`{"role", "content"}`，可以再加 `"id"`。
-- `add_messages` 会**追加**这些 dict。相同的 `"id"` 会**替换**旧消息，而不是再追加一条。
-- `operator.add` 只会拼接。它不会就地更新一条消息，所以第三则判题用它会失败。
-- 模型是本地函数。它读取最近一条 `role: "user"` 的文本，返回一条 assistant dict。不需要 API key。
+- 消息是 dict：`role`、`content`，以及可选的 `id`。
+- `add_messages` 会追加。相同的 `id` 会替换上一条。
+- `operator.add` 只会拼接，所以第二条 id 为 `"draft"` 的草稿会和旧草稿并排。本课第三则判题不允许这样。
+- `support_model` 是本地函数，只有三句固定回答。它代替聊天模型。不需要 API key。
 
-固定 id `"reply"` 是故意的：这一课用它演示替换。多轮记录通常不写 id（或每次用新 id），这样每轮 assistant 都会追加。第 06 课用另一种方式保存记忆。
+id `"draft"` 表示这个节点只维护当前这一条回复。重新生成时更新这条消息。需要保留每一轮助手发言的记录不要写 id，第 06 课就是那样。
 
 ## 契约
 
 ```text
 messages: Annotated[list, add_messages]
-节点 echo 返回 [fake_model(messages)]
 
-{"messages": [{"role": "user", "content": "hi"}]}
-  → 保留 user hi，再加 {"id": "reply", "role": "assistant", "content": "echo: hi"}
+"Can I get a refund?"
+  → "Refunds are allowed within 30 days. Include the order id."
 
-{"messages": [{"role": "user", "content": "ping"}]}
-  → user ping，再加 "echo: ping"
+"Send me the invoice."
+  → "Invoices are sent to the billing email on the account."
 
-输入里已经有 {"id": "reply", "content": "stale"}
-  → 这条 reply 被替换成 "echo: hi"（仍然是两条消息，不是三条）
+同一句退款问题，外加已有的
+{"id": "draft", "content": "Draft not finished."}
+  → 这条草稿被替换。列表仍然只有两条消息。
 ```
+
+用户消息留在前面。其他问题落到 "I can help with refunds or invoices."。
 
 ## 骨架
 
@@ -34,26 +36,34 @@ from langgraph.graph.message import add_messages
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
-def fake_model(messages: list) -> dict:
-    text = ""
-    for msg in reversed(messages):
-        if isinstance(msg, dict) and msg.get("role") == "user":
-            text = str(msg.get("content", ""))
-            break
-    return {"id": "reply", "role": "assistant", "content": "echo: " + text}
+def _latest_user_text(messages: list) -> str:
+    for message in reversed(messages):
+        if isinstance(message, dict) and message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
 
-def echo(state: State) -> dict:
-    return {"messages": [fake_model(state["messages"])]}
+def support_model(messages: list) -> dict:
+    text = _latest_user_text(messages).lower()
+    if "refund" in text:
+        content = "Refunds are allowed within 30 days. Include the order id."
+    elif "invoice" in text:
+        content = "Invoices are sent to the billing email on the account."
+    else:
+        content = "I can help with refunds or invoices."
+    return {"id": "draft", "role": "assistant", "content": content}
+
+def draft_reply(state: State) -> dict:
+    return {"messages": [support_model(state["messages"])]}
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("echo", echo)
-    g.add_edge(START, "echo")
-    g.add_edge("echo", END)
+    g.add_node("draft_reply", draft_reply)
+    g.add_edge(START, "draft_reply")
+    g.add_edge("draft_reply", END)
     return g.compile()
 ```
 
 ## 教学子集
-- 只用 dict 消息。LangChain 的 `BaseMessage`、`RemoveMessage`、`GenericFakeChatModel` 没有装进这里的 Pyodide。
-- `add_messages` 也可以接收单条 dict，不限于列表。本解答返回只有一个元素的列表。
-- 缺失的 `messages` 通道会从 `[]` 开始。`operator.add` 不会这样做。
+- 只用 dict 消息。这里不加载 `BaseMessage`、`RemoveMessage`、`GenericFakeChatModel`。
+- `add_messages` 也可以接收单条 dict。本图返回只有一个元素的列表。
+- 缺失的 `messages` 通道从 `[]` 开始。

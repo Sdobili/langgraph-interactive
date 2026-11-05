@@ -14,16 +14,24 @@ sys.path.insert(0, str(DOCS))
 import grade_lib  # noqa: E402
 
 CASES = json.loads((DOCS / "grader_cases.json").read_text(encoding="utf-8"))
-LESSONS = ["01", "02", "03", "04", "05", "06"]
+LESSONS = [f"{n:02d}" for n in range(1, 15)]
 
 # A substring that only appears once the starter is graded helpfully.
 STARTER_HINT = {
     "01": "returned None",
-    "02": "negative",
-    "03": '"a"',
+    "02": "engineering",
+    "03": "faq",
     "04": "GraphRecursionError",
-    "05": "echo: hi",
-    "06": '"count": 2',
+    "05": "Can I get a refund?",
+    "06": "What is the order id?",
+    "07": "The refund can proceed.",
+    "08": "Held for review",
+    "09": "history is empty",
+    "10": "Refunds are allowed within 30 days.",
+    "11": "sku-b",
+    "12": "ada@example.com",
+    "13": "TimeoutError",
+    "14": "old",
 }
 
 THEORY_MARKERS = {

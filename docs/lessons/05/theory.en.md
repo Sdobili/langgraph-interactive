@@ -1,28 +1,30 @@
-# 05 — Messages and a fake echo model
+# 05 — Rewrite the assistant draft
 
 ## What you learn
-- Chat state is a list of plain dicts: `{"role", "content"}`, plus optional `"id"`.
-- `add_messages` **appends** those dicts. The same `"id"` **replaces** the old one instead of duplicating it.
-- `operator.add` only concatenates. It will not update a message in place, so the third grader case fails if you use it.
-- The model is a local function. It reads the latest `role: "user"` text and returns one assistant dict. No API key.
+- Messages are dicts: `role`, `content`, and an optional `id`.
+- `add_messages` appends them. The same `id` replaces the previous message.
+- `operator.add` only concatenates, so a second draft with id `"draft"` would sit beside the old one. This lesson’s third case rejects that.
+- `support_model` is a local function with three fixed answers. It stands in for a chat model. No API key.
 
-The fixed id `"reply"` is deliberate: it is how this lesson shows replacement. A multi-turn transcript usually omits the id (or uses a new one) so each assistant turn appends. Lesson 06 stores memory another way.
+The id `"draft"` means this node owns one current reply. Regenerating the draft updates that message. A transcript that should keep every assistant turn omits the id, which is what lesson 06 does.
 
 ## Contract
 
 ```text
 messages: Annotated[list, add_messages]
-node echo returns [fake_model(messages)]
 
-{"messages": [{"role": "user", "content": "hi"}]}
-  → user hi, then {"id": "reply", "role": "assistant", "content": "echo: hi"}
+"Can I get a refund?"
+  → "Refunds are allowed within 30 days. Include the order id."
 
-{"messages": [{"role": "user", "content": "ping"}]}
-  → user ping, then "echo: ping"
+"Send me the invoice."
+  → "Invoices are sent to the billing email on the account."
 
-input already contains {"id": "reply", "content": "stale"}
-  → that reply is replaced by "echo: hi" (still two messages, not three)
+The same refund question, plus an existing
+{"id": "draft", "content": "Draft not finished."}
+  → that draft is replaced. The list still has two messages.
 ```
+
+The user message stays in front. Anything else falls through to "I can help with refunds or invoices."
 
 ## Skeleton
 
@@ -34,26 +36,34 @@ from langgraph.graph.message import add_messages
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
-def fake_model(messages: list) -> dict:
-    text = ""
-    for msg in reversed(messages):
-        if isinstance(msg, dict) and msg.get("role") == "user":
-            text = str(msg.get("content", ""))
-            break
-    return {"id": "reply", "role": "assistant", "content": "echo: " + text}
+def _latest_user_text(messages: list) -> str:
+    for message in reversed(messages):
+        if isinstance(message, dict) and message.get("role") == "user":
+            return str(message.get("content", ""))
+    return ""
 
-def echo(state: State) -> dict:
-    return {"messages": [fake_model(state["messages"])]}
+def support_model(messages: list) -> dict:
+    text = _latest_user_text(messages).lower()
+    if "refund" in text:
+        content = "Refunds are allowed within 30 days. Include the order id."
+    elif "invoice" in text:
+        content = "Invoices are sent to the billing email on the account."
+    else:
+        content = "I can help with refunds or invoices."
+    return {"id": "draft", "role": "assistant", "content": content}
+
+def draft_reply(state: State) -> dict:
+    return {"messages": [support_model(state["messages"])]}
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("echo", echo)
-    g.add_edge(START, "echo")
-    g.add_edge("echo", END)
+    g.add_node("draft_reply", draft_reply)
+    g.add_edge(START, "draft_reply")
+    g.add_edge("draft_reply", END)
     return g.compile()
 ```
 
 ## Teaching subset
-- Dict messages only. LangChain `BaseMessage`, `RemoveMessage`, and `GenericFakeChatModel` are not loaded in Pyodide here.
-- `add_messages` also accepts a single dict, not only a list. This solution returns a one-element list.
-- A missing `messages` channel starts as `[]`. `operator.add` does not do that.
+- Dict messages only. `BaseMessage`, `RemoveMessage`, and `GenericFakeChatModel` are not loaded.
+- `add_messages` also accepts one dict. This graph returns a one-element list.
+- A missing `messages` channel starts as `[]`.

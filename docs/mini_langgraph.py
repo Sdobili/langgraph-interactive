@@ -1,4 +1,4 @@
-"""Pure-Python LangGraph subset for the Pages course (lessons 01–06).
+"""Pure-Python LangGraph subset for the Pages course (lessons 01–14).
 
 No third-party packages. ``install_as_langgraph()`` aliases this module so student
 code can keep the real import paths.
@@ -13,12 +13,17 @@ Implemented (same call shape as current LangGraph docs):
 - ``recursion_limit`` (default 25) and ``langgraph.errors.GraphRecursionError``
 - ``langgraph.graph.message.add_messages`` for dict messages (append, or replace by ``id``)
 - ``compile(checkpointer=...)``, ``config["configurable"]["thread_id"]``, ``get_state``
+- ``interrupt_before``, ``update_state``, ``get_state_history`` (latest-plus-past snapshots)
+- ``langgraph.types.Send`` run **in order** (real LangGraph fans these out in parallel)
+- ``RetryPolicy`` on ``add_node(..., retry=...)``
+- A compiled graph used as a node (subgraph)
+- ``langgraph.store.memory.InMemoryStore`` injected when a node takes ``store``
 - ``langgraph.checkpoint.memory.InMemorySaver`` (``MemorySaver`` is the same class)
 
 Not implemented (do not expect these to work here):
 
-- Parallel fan-out / ``Send``, deferred nodes, subgraphs, interrupts, commands
-- Stores, time travel, sqlite/postgres checkpointers, pending writes
+- Parallel execution, ``Command``, deferred nodes, ``interrupt()`` inside a node
+- sqlite/postgres checkpointers, stores with search, pending writes
 - LangChain ``BaseMessage`` / ``GenericFakeChatModel`` (lessons use plain dicts
   and a pure-Python fake)
 - ``from __future__ import annotations`` is supported only because the grader
@@ -31,9 +36,11 @@ Other subset rules the lessons rely on:
 - ``recursion_limit`` above 1000 is rejected so a cycle cannot hang the page.
 - A node may have one normal edge *or* conditional edges, not both.
 - If a node has no outgoing edge, it goes to ``END`` (lesson 01 behavior).
-- Checkpoints store the latest full state dict per ``thread_id`` only.
-  The next ``invoke`` merges that input onto the checkpoint (reducers apply)
-  and runs the graph from the start again. Pass ``{}`` to continue unchanged.
+- Checkpoints store every superstep for one thread, but ``get`` still returns
+  the latest values only. ``invoke(input, config)`` merges that input and runs
+  from ``START``. ``invoke(None, config)`` resumes ``next`` when a snapshot is
+  paused (interrupt or ``update_state``); otherwise it reruns from ``START``.
+  Pass ``{}`` to continue a finished thread from the start without changing values.
 - Channels without a reducer overwrite. ``operator.add`` needs the key to
   already be present (``None + x`` is a Python error). ``add_messages`` treats
   a missing channel as ``[]``.
@@ -59,6 +66,10 @@ __all__ = [
     "GraphRecursionError",
     "InMemorySaver",
     "MemorySaver",
+    "InMemoryStore",
+    "StoreItem",
+    "Send",
+    "RetryPolicy",
     "add_messages",
     "install_as_langgraph",
 ]
@@ -69,30 +80,95 @@ class GraphRecursionError(RecursionError):
 
 
 class StateSnapshot:
-    """Subset of LangGraph's snapshot: only ``.values`` is populated."""
+    """Subset of LangGraph's snapshot: ``.values`` and ``.next``."""
 
-    def __init__(self, values: dict) -> None:
+    def __init__(self, values: dict, next: Any = ()) -> None:
         self.values = values
+        self.next = tuple(next)
 
 
 class InMemorySaver:
-    """RAM checkpointer: one latest state dict per thread id.
+    """RAM checkpointer. One thread keeps an ordered list of snapshots.
 
-    Same idea as ``langgraph.checkpoint.memory.InMemorySaver`` / ``MemorySaver``.
-    No history and no cross-process persistence.
+    ``get`` returns the latest values dict. ``history`` returns every snapshot
+    (oldest first) as ``{"values", "next"}``. No sqlite and no pending writes.
     """
 
     def __init__(self) -> None:
-        self._store: Dict[str, dict] = {}
+        self._history: Dict[str, list] = {}
 
     def get(self, thread_id: str) -> Optional[dict]:
-        saved = self._store.get(thread_id)
-        if saved is None:
+        latest = self._latest(thread_id)
+        if latest is None:
             return None
-        return copy.deepcopy(saved)
+        return copy.deepcopy(latest["values"])
 
-    def put(self, thread_id: str, state: dict) -> None:
-        self._store[thread_id] = copy.deepcopy(state)
+    def get_snapshot(self, thread_id: str) -> Optional[dict]:
+        latest = self._latest(thread_id)
+        if latest is None:
+            return None
+        return copy.deepcopy(latest)
+
+    def history(self, thread_id: str) -> list:
+        return copy.deepcopy(self._history.get(thread_id, []))
+
+    def put(self, thread_id: str, state: dict, next: Any = None) -> None:
+        snap = {
+            "values": copy.deepcopy(state),
+            "next": [str(name) for name in (next or [])],
+        }
+        self._history.setdefault(thread_id, []).append(snap)
+
+    def _latest(self, thread_id: str) -> Optional[dict]:
+        hist = self._history.get(thread_id)
+        if not hist:
+            return None
+        return hist[-1]
+
+
+class StoreItem:
+    """Subset of a store item. Lessons read ``.value``."""
+
+    def __init__(self, value: Any, key: str, namespace: Tuple[str, ...]) -> None:
+        self.value = value
+        self.key = key
+        self.namespace = namespace
+
+
+class InMemoryStore:
+    """RAM store shared across threads. ``put`` / ``get`` by namespace and key."""
+
+    def __init__(self) -> None:
+        self._data: Dict[Tuple[Tuple[str, ...], str], Any] = {}
+
+    def put(self, namespace: Any, key: str, value: Any) -> None:
+        self._data[(tuple(namespace), str(key))] = copy.deepcopy(value)
+
+    def get(self, namespace: Any, key: str) -> Optional[StoreItem]:
+        ns = tuple(namespace)
+        item_key = str(key)
+        if (ns, item_key) not in self._data:
+            return None
+        return StoreItem(copy.deepcopy(self._data[(ns, item_key)]), item_key, ns)
+
+
+class Send:
+    """Run ``node`` once with ``arg`` as its state. Batches run in list order."""
+
+    def __init__(self, node: str, arg: Any) -> None:
+        if not isinstance(node, str):
+            raise TypeError("Send node must be a string")
+        self.node = node
+        self.arg = arg
+
+
+class RetryPolicy:
+    """Retry a node on exception, up to ``max_attempts`` calls (including the first)."""
+
+    def __init__(self, max_attempts: int = 1) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1")
+        self.max_attempts = max_attempts
 
 
 # Older docs and tutorials import MemorySaver. Same object in this subset.
@@ -195,6 +271,16 @@ def _apply(current: dict, update: Any, reducers: Dict[str, Callable]) -> None:
             current[key] = reducer(current.get(key), value)
 
 
+def _accepts_store(fn: Any) -> bool:
+    import inspect
+
+    try:
+        parameters = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return "store" in parameters
+
+
 def _clone(state: dict) -> dict:
     try:
         return copy.deepcopy(state)
@@ -234,6 +320,9 @@ class CompiledGraph:
         conditional: Dict[str, Tuple[Callable, Optional[dict]]],
         reducers: Dict[str, Callable],
         checkpointer: Any = None,
+        interrupt_before: Any = None,
+        retries: Optional[Dict[str, RetryPolicy]] = None,
+        store: Any = None,
     ) -> None:
         self.nodes = nodes
         self.edges = edges
@@ -241,34 +330,97 @@ class CompiledGraph:
         self.conditional = conditional
         self.reducers = reducers
         self.checkpointer = checkpointer
+        self.interrupt_before = set(interrupt_before or [])
+        self.retries = retries or {}
+        self.store = store
+
+    def __call__(self, state: dict) -> dict:
+        """Subgraph use: return the full child state. The parent merges it."""
+        return self.invoke(state)
 
     def invoke(self, state: Any = None, config: Any = None) -> dict:
         limit = _recursion_limit(config)
-        current = self._initial_state(state, config)
-        node = self.entry if self.entry is not None else self._route(START, current)
+        current, node, skip_interrupt = self._boot(state, config)
         steps = 0
         while node is not None and node != END:
-            steps += 1
-            if steps > limit:
-                raise GraphRecursionError(
-                    f"Recursion limit of {limit} reached without hitting a stop condition."
-                )
+            if isinstance(node, list):
+                node, steps = self._run_sends(node, current, limit, steps)
+                continue
+            if node in self.interrupt_before and node != skip_interrupt:
+                self._checkpoint(current, [node], config)
+                return current
+            skip_interrupt = None
             if node not in self.nodes:
                 raise KeyError(f"unknown node: {node!r}")
-            update = self.nodes[node](current)
+            update, steps = self._invoke_node(node, current, limit, steps)
             _apply(current, update, self.reducers)
-            node = self._route(node, current)
-        self._save(current, config)
+            nxt = self._route(node, current)
+            if isinstance(nxt, list):
+                node = nxt
+                continue
+            if nxt == END:
+                self._checkpoint(current, [], config)
+                return current
+            if nxt in self.interrupt_before:
+                self._checkpoint(current, [nxt], config)
+                return current
+            self._checkpoint(current, [nxt], config)
+            node = nxt
+        self._checkpoint(current, [], config)
         return current
 
     def get_state(self, config: Any) -> StateSnapshot:
         thread_id = _thread_id(config)
         if self.checkpointer is None or thread_id is None:
             return StateSnapshot({})
+        if hasattr(self.checkpointer, "get_snapshot"):
+            snap = self.checkpointer.get_snapshot(thread_id)
+            if not snap:
+                return StateSnapshot({})
+            return StateSnapshot(_clone(snap["values"]), snap.get("next") or [])
         saved = self.checkpointer.get(thread_id)
         if not saved:
             return StateSnapshot({})
         return StateSnapshot(_clone(saved))
+
+    def get_state_history(self, config: Any) -> list:
+        thread_id = _thread_id(config)
+        if (
+            self.checkpointer is None
+            or thread_id is None
+            or not hasattr(self.checkpointer, "history")
+        ):
+            return []
+        snaps = self.checkpointer.history(thread_id)
+        return [
+            StateSnapshot(_clone(snap["values"]), snap.get("next") or [])
+            for snap in reversed(snaps)
+        ]
+
+    def update_state(self, config: Any, values: Any = None, as_node: Any = None) -> StateSnapshot:
+        if self.checkpointer is None:
+            raise ValueError("update_state requires a checkpointer")
+        thread_id = _thread_id(config)
+        if thread_id is None:
+            raise ValueError("update_state requires configurable.thread_id")
+        current = self.checkpointer.get(thread_id)
+        current = {} if current is None else _clone(current)
+        if values:
+            _apply(current, values, self.reducers)
+        if as_node is not None:
+            nxt = self._route(as_node, current)
+            if isinstance(nxt, list):
+                raise ValueError("update_state as_node cannot route to Send")
+            next_nodes = [] if nxt == END else [nxt]
+        else:
+            snap = (
+                self.checkpointer.get_snapshot(thread_id)
+                if hasattr(self.checkpointer, "get_snapshot")
+                else None
+            )
+            next_nodes = list(snap["next"]) if snap else []
+        self._checkpoint(current, next_nodes, config)
+        return StateSnapshot(_clone(current), next_nodes)
 
     def _initial_state(self, state: Any, config: Any) -> dict:
         if state is None:
@@ -289,19 +441,87 @@ class CompiledGraph:
         return _clone(incoming)
 
     def _save(self, state: dict, config: Any) -> None:
+        self._checkpoint(state, [], config)
+
+    def _checkpoint(self, state: dict, next_nodes: list, config: Any) -> None:
         thread_id = _thread_id(config)
         if self.checkpointer is None or thread_id is None:
             return
-        self.checkpointer.put(thread_id, state)
+        self.checkpointer.put(thread_id, state, next_nodes)
 
-    def _route(self, source: str, state: dict) -> str:
+    def _boot(self, state: Any, config: Any):
+        thread_id = _thread_id(config)
+        if state is None and self.checkpointer is not None and thread_id is not None:
+            snap = (
+                self.checkpointer.get_snapshot(thread_id)
+                if hasattr(self.checkpointer, "get_snapshot")
+                else None
+            )
+            if snap and snap.get("next"):
+                nxt = snap["next"][0]
+                return _clone(snap["values"]), nxt, nxt
+        current = self._initial_state(state, config)
+        node = self.entry if self.entry is not None else self._route(START, current)
+        return current, node, None
+
+    def _invoke_node(self, name: str, state: Any, limit: int, steps: int):
+        policy = self.retries.get(name)
+        attempts = policy.max_attempts if policy is not None else 1
+        last_exc: Optional[BaseException] = None
+        for _ in range(attempts):
+            steps += 1
+            if steps > limit:
+                raise GraphRecursionError(
+                    f"Recursion limit of {limit} reached without hitting a stop condition."
+                )
+            try:
+                return self._call(self.nodes[name], state), steps
+            except GraphRecursionError:
+                raise
+            except Exception as exc:
+                last_exc = exc
+        assert last_exc is not None
+        raise last_exc
+
+    def _call(self, fn: Any, state: Any) -> Any:
+        if isinstance(fn, CompiledGraph):
+            return fn.invoke(state)
+        if _accepts_store(fn):
+            return fn(state, store=self.store)
+        return fn(state)
+
+    def _run_sends(self, sends: list, current: dict, limit: int, steps: int):
+        if not sends:
+            return END, steps
+        targets = []
+        for send in sends:
+            if not isinstance(send, Send):
+                raise TypeError(
+                    "a conditional path may return one node name or a list of Send; "
+                    "parallel name lists are not in this subset"
+                )
+            if send.node not in self.nodes:
+                raise KeyError(f"unknown node: {send.node!r}")
+            targets.append(send.node)
+            update, steps = self._invoke_node(send.node, send.arg, limit, steps)
+            _apply(current, update, self.reducers)
+        if len(set(targets)) != 1:
+            raise ValueError("Send targets in one step must share one node name")
+        target = targets[0]
+        if target in self.conditional:
+            return self._route(target, current), steps
+        return self.edges.get(target, END), steps
+
+    def _route(self, source: str, state: dict) -> Any:
         if source in self.conditional:
             path, path_map = self.conditional[source]
             chosen = path(state)
             if isinstance(chosen, (list, tuple)):
+                if all(isinstance(item, Send) for item in chosen):
+                    return list(chosen)
                 raise TypeError(
-                    "conditional path returned multiple destinations; "
-                    "this teaching subset runs one node at a time (no Send / parallel fan-out)"
+                    "a conditional path may return one node name or a list of Send; "
+                    "parallel name lists are not in this subset"
                 )
             if not isinstance(chosen, str):
                 raise TypeError(
@@ -330,14 +550,19 @@ class StateGraph:
         self._nodes: Dict[str, Callable] = {}
         self._edges: Dict[str, str] = {}
         self._conditional: Dict[str, Tuple[Callable, Optional[dict]]] = {}
+        self._retries: Dict[str, RetryPolicy] = {}
         self._entry: Optional[str] = None
 
-    def add_node(self, name: str, action: Callable) -> "StateGraph":
+    def add_node(self, name: str, action: Callable, retry: Any = None) -> "StateGraph":
         if name in (START, END):
             raise ValueError(f"reserved node name: {name}")
         if not callable(action):
             raise TypeError(f"node {name!r} action must be callable")
+        if retry is not None and not isinstance(retry, RetryPolicy):
+            raise TypeError("retry must be a RetryPolicy")
         self._nodes[name] = action
+        if isinstance(retry, RetryPolicy):
+            self._retries[name] = retry
         return self
 
     def add_edge(self, source: str, target: str) -> "StateGraph":
@@ -381,9 +606,18 @@ class StateGraph:
         self._conditional[source] = (path, normalized)
         return self
 
-    def compile(self, checkpointer: Any = None) -> CompiledGraph:
+    def compile(
+        self,
+        checkpointer: Any = None,
+        interrupt_before: Any = None,
+        store: Any = None,
+    ) -> CompiledGraph:
         if self._entry is None and START not in self._conditional:
             raise ValueError("missing edge from START")
+        interrupts = list(interrupt_before or [])
+        unknown_interrupts = [name for name in interrupts if name not in self._nodes]
+        if unknown_interrupts:
+            raise ValueError(f"interrupt_before references unknown nodes: {unknown_interrupts}")
         referenced = []
         if self._entry is not None:
             referenced.append(self._entry)
@@ -408,6 +642,9 @@ class StateGraph:
             conditional=conditional,
             reducers=_reducers_from_schema(self.state_schema),
             checkpointer=checkpointer,
+            interrupt_before=interrupts,
+            retries=dict(self._retries),
+            store=store,
         )
 
     def _reject_second_outgoing(self, source: str) -> None:
@@ -458,3 +695,20 @@ def install_as_langgraph() -> None:
     memory.MemorySaver = MemorySaver
     checkpoint_pkg.memory = memory
     sys.modules["langgraph.checkpoint.memory"] = memory
+
+    types_mod = types.ModuleType("langgraph.types")
+    types_mod.Send = Send
+    types_mod.RetryPolicy = RetryPolicy
+    pkg.types = types_mod
+    sys.modules["langgraph.types"] = types_mod
+
+    store_pkg = sys.modules.get("langgraph.store")
+    if store_pkg is None:
+        store_pkg = types.ModuleType("langgraph.store")
+        store_pkg.__path__ = []
+        sys.modules["langgraph.store"] = store_pkg
+    pkg.store = store_pkg
+    store_memory = types.ModuleType("langgraph.store.memory")
+    store_memory.InMemoryStore = InMemoryStore
+    store_pkg.memory = store_memory
+    sys.modules["langgraph.store.memory"] = store_memory

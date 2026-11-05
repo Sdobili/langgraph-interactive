@@ -1,11 +1,10 @@
-"""Lesson 04 — Cycles and recursion_limit (starter).
+"""Lesson 04 — Drain a lookup queue.
 
-tick should repeat while n > 0, then stop at END.
-This starter runs tick once and always stops, so n=3 never finishes
-and a tight recursion_limit never fires.
+fetch pops one key from remaining and appends that record to evidence.
+Repeat until remaining is empty. Stop with END.
 
-invoke({"n": 3, "trace": []}) == {"n": 0, "trace": [3, 2, 1]}
-invoke({"n": 4, "trace": []}, config={"recursion_limit": 2}) raises GraphRecursionError
+An empty queue performs no lookup.
+Four lookups with recursion_limit 2 must raise GraphRecursionError.
 """
 
 import operator
@@ -13,27 +12,41 @@ from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+RECORDS = {
+    "order": "Order 1042 is paid.",
+    "policy": "Refunds are allowed within 30 days.",
+    "account": "The account email is billing@example.com.",
+    "shipment": "Shipment has not left the warehouse.",
+}
+
 
 class State(TypedDict):
-    n: int
-    trace: Annotated[list, operator.add]
+    query: str
+    evidence: Annotated[list, operator.add]
+    remaining: list
 
 
-def tick(state: State) -> dict:
-    return {"n": state["n"] - 1, "trace": [state["n"]]}
+def fetch(state: State) -> dict:
+    queue = list(state["remaining"])
+    if not queue:
+        return {}
+    key = queue.pop(0)
+    return {
+        "remaining": queue,
+        "evidence": [{"tool": "lookup", "key": key, "text": RECORDS[key]}],
+    }
 
 
 def route(state: State) -> str:
-    if state["n"] > 0:
-        return "tick"
+    if state["remaining"]:
+        return "fetch"
     return END
 
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("tick", tick)
-    # TODO: conditional edges from START and from "tick" via route,
-    # so the graph can loop back to tick or stop at END.
-    g.add_edge(START, "tick")
-    g.add_edge("tick", END)
+    g.add_node("fetch", fetch)
+    # TODO: conditional edges from START and from "fetch" through route.
+    g.add_edge(START, "fetch")
+    g.add_edge("fetch", END)
     return g.compile()

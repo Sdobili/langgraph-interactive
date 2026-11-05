@@ -5,51 +5,157 @@
     {"input": {"count": 5}, "expected": {"count": 12}}
   ],
   "02": [
-    {"input": {"n": 4, "label": ""}, "expected": {"n": 4, "label": "positive"}},
-    {"input": {"n": -3, "label": ""}, "expected": {"n": -3, "label": "negative"}},
-    {"input": {"n": 0, "label": ""}, "expected": {"n": 0, "label": "zero"}}
+    {
+      "input": {"ticket": "Please refund invoice 1042.", "team": ""},
+      "expected": {"ticket": "Please refund invoice 1042.", "team": "billing"}
+    },
+    {
+      "input": {"ticket": "Login crashes with error 500.", "team": ""},
+      "expected": {"ticket": "Login crashes with error 500.", "team": "engineering"}
+    },
+    {
+      "input": {"ticket": "Where is the status page?", "team": ""},
+      "expected": {"ticket": "Where is the status page?", "team": "general"}
+    }
   ],
   "03": [
-    {"input": {"log": [], "total": 0}, "expected": {"log": ["a", "b"], "total": 11}},
-    {"input": {"log": ["seed"], "total": 5}, "expected": {"log": ["seed", "a", "b"], "total": 16}}
+    {
+      "input": {"query": "What is the refund window?", "passages": [], "draft": ""},
+      "expected": {
+        "query": "What is the refund window?",
+        "passages": [
+          {"source": "faq", "text": "What is the refund window?"},
+          {"source": "policy", "text": "Refunds are allowed within 30 days."}
+        ],
+        "draft": "Refunds are allowed within 30 days."
+      }
+    },
+    {
+      "input": {
+        "query": "What is the refund window?",
+        "passages": [{"source": "ticket", "text": "Customer asked about a refund."}],
+        "draft": "Pending."
+      },
+      "expected": {
+        "query": "What is the refund window?",
+        "passages": [
+          {"source": "ticket", "text": "Customer asked about a refund."},
+          {"source": "faq", "text": "What is the refund window?"},
+          {"source": "policy", "text": "Refunds are allowed within 30 days."}
+        ],
+        "draft": "Refunds are allowed within 30 days."
+      }
+    }
   ],
   "04": [
-    {"input": {"n": 0, "trace": []}, "expected": {"n": 0, "trace": []}},
-    {"input": {"n": 1, "trace": []}, "expected": {"n": 0, "trace": [1]}},
-    {"input": {"n": 3, "trace": []}, "expected": {"n": 0, "trace": [3, 2, 1]}},
-    {"input": {"n": 3, "trace": []}, "config": {"recursion_limit": 3}, "expected": {"n": 0, "trace": [3, 2, 1]}},
-    {"input": {"n": 4, "trace": []}, "config": {"recursion_limit": 2}, "raises": "GraphRecursionError"}
+    {
+      "input": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": []
+      },
+      "expected": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": []
+      }
+    },
+    {
+      "input": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": ["order"]
+      },
+      "expected": {
+        "query": "Can I refund order 1042?",
+        "evidence": [{"tool": "lookup", "key": "order", "text": "Order 1042 is paid."}],
+        "remaining": []
+      }
+    },
+    {
+      "input": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": ["order", "policy"]
+      },
+      "expected": {
+        "query": "Can I refund order 1042?",
+        "evidence": [
+          {"tool": "lookup", "key": "order", "text": "Order 1042 is paid."},
+          {"tool": "lookup", "key": "policy", "text": "Refunds are allowed within 30 days."}
+        ],
+        "remaining": []
+      }
+    },
+    {
+      "input": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": ["order", "policy", "account"]
+      },
+      "config": {"recursion_limit": 3},
+      "expected": {
+        "query": "Can I refund order 1042?",
+        "evidence": [
+          {"tool": "lookup", "key": "order", "text": "Order 1042 is paid."},
+          {"tool": "lookup", "key": "policy", "text": "Refunds are allowed within 30 days."},
+          {"tool": "lookup", "key": "account", "text": "The account email is billing@example.com."}
+        ],
+        "remaining": []
+      }
+    },
+    {
+      "input": {
+        "query": "Can I refund order 1042?",
+        "evidence": [],
+        "remaining": ["order", "policy", "account", "shipment"]
+      },
+      "config": {"recursion_limit": 2},
+      "raises": "GraphRecursionError"
+    }
   ],
   "05": [
     {
-      "input": {"messages": [{"role": "user", "content": "hi"}]},
+      "input": {"messages": [{"role": "user", "content": "Can I get a refund?"}]},
       "expected": {
         "messages": [
-          {"role": "user", "content": "hi"},
-          {"id": "reply", "role": "assistant", "content": "echo: hi"}
+          {"role": "user", "content": "Can I get a refund?"},
+          {
+            "id": "draft",
+            "role": "assistant",
+            "content": "Refunds are allowed within 30 days. Include the order id."
+          }
         ]
       }
     },
     {
-      "input": {"messages": [{"role": "user", "content": "ping"}]},
+      "input": {"messages": [{"role": "user", "content": "Send me the invoice."}]},
       "expected": {
         "messages": [
-          {"role": "user", "content": "ping"},
-          {"id": "reply", "role": "assistant", "content": "echo: ping"}
+          {"role": "user", "content": "Send me the invoice."},
+          {
+            "id": "draft",
+            "role": "assistant",
+            "content": "Invoices are sent to the billing email on the account."
+          }
         ]
       }
     },
     {
       "input": {
         "messages": [
-          {"role": "user", "content": "hi"},
-          {"id": "reply", "role": "assistant", "content": "stale"}
+          {"role": "user", "content": "Can I get a refund?"},
+          {"id": "draft", "role": "assistant", "content": "Draft not finished."}
         ]
       },
       "expected": {
         "messages": [
-          {"role": "user", "content": "hi"},
-          {"id": "reply", "role": "assistant", "content": "echo: hi"}
+          {"role": "user", "content": "Can I get a refund?"},
+          {
+            "id": "draft",
+            "role": "assistant",
+            "content": "Refunds are allowed within 30 days. Include the order id."
+          }
         ]
       }
     }
@@ -58,34 +164,382 @@
     {
       "steps": [
         {
-          "input": {"count": 0},
-          "config": {"configurable": {"thread_id": "counter"}},
-          "expected": {"count": 1}
+          "input": {"messages": [{"role": "user", "content": "Can I get a refund?"}]},
+          "config": {"configurable": {"thread_id": "acct-1042"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Can I get a refund?"},
+              {
+                "role": "assistant",
+                "content": "Refunds are allowed within 30 days. What is the order id?"
+              }
+            ]
+          }
         },
         {
-          "input": {},
-          "config": {"configurable": {"thread_id": "counter"}},
-          "expected": {"count": 2}
+          "input": {"messages": [{"role": "user", "content": "The order id is 1042."}]},
+          "config": {"configurable": {"thread_id": "acct-1042"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Can I get a refund?"},
+              {
+                "role": "assistant",
+                "content": "Refunds are allowed within 30 days. What is the order id?"
+              },
+              {"role": "user", "content": "The order id is 1042."},
+              {
+                "role": "assistant",
+                "content": "Order 1042 is eligible. I have queued the refund."
+              }
+            ]
+          }
         },
         {
-          "input": {},
-          "config": {"configurable": {"thread_id": "counter"}},
-          "expected": {"count": 3}
+          "get_state": {"configurable": {"thread_id": "acct-1042"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Can I get a refund?"},
+              {
+                "role": "assistant",
+                "content": "Refunds are allowed within 30 days. What is the order id?"
+              },
+              {"role": "user", "content": "The order id is 1042."},
+              {
+                "role": "assistant",
+                "content": "Order 1042 is eligible. I have queued the refund."
+              }
+            ]
+          }
         },
         {
-          "get_state": {"configurable": {"thread_id": "counter"}},
-          "expected": {"count": 3}
+          "input": {"messages": [{"role": "user", "content": "Hello"}]},
+          "config": {"configurable": {"thread_id": "walk-in"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Hello"},
+              {
+                "role": "assistant",
+                "content": "I can help with refunds. Include the order id."
+              }
+            ]
+          }
         },
         {
-          "input": {"count": 10},
-          "config": {"configurable": {"thread_id": "other"}},
-          "expected": {"count": 11}
-        },
-        {
-          "get_state": {"configurable": {"thread_id": "counter"}},
-          "expected": {"count": 3}
+          "get_state": {"configurable": {"thread_id": "acct-1042"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Can I get a refund?"},
+              {
+                "role": "assistant",
+                "content": "Refunds are allowed within 30 days. What is the order id?"
+              },
+              {"role": "user", "content": "The order id is 1042."},
+              {
+                "role": "assistant",
+                "content": "Order 1042 is eligible. I have queued the refund."
+              }
+            ]
+          }
         }
       ]
+    }
+  ],
+  "07": [
+    {
+      "input": {"messages": [{"role": "user", "content": "What is the status of order 1042?"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "What is the status of order 1042?"},
+          {"role": "assistant", "tool_calls": [{"name": "lookup_order", "args": {"order_id": "1042"}}]},
+          {"role": "tool", "name": "lookup_order", "content": "Order 1042 is paid."},
+          {"role": "assistant", "content": "Order 1042 is paid. The refund can proceed."}
+        ]
+      }
+    },
+    {
+      "input": {"messages": [{"role": "user", "content": "What is the refund window?"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "What is the refund window?"},
+          {"role": "assistant", "tool_calls": [{"name": "lookup_policy", "args": {}}]},
+          {"role": "tool", "name": "lookup_policy", "content": "Refunds are allowed within 30 days."},
+          {"role": "assistant", "content": "Refunds are allowed within 30 days."}
+        ]
+      }
+    },
+    {
+      "input": {"messages": [{"role": "user", "content": "Hello"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "Hello"},
+          {"role": "assistant", "content": "I can look up an order or the refund policy."}
+        ]
+      }
+    }
+  ],
+  "08": [
+    {
+      "steps": [
+        {
+          "input": {
+            "messages": [{"role": "user", "content": "Please refund order 1042."}],
+            "approved": false
+          },
+          "config": {"configurable": {"thread_id": "apr-1"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."}
+            ],
+            "approved": false
+          }
+        },
+        {
+          "get_state": {"configurable": {"thread_id": "apr-1"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."}
+            ],
+            "approved": false
+          },
+          "next": ["send"]
+        },
+        {
+          "update_state": {"values": {"approved": true}},
+          "config": {"configurable": {"thread_id": "apr-1"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."}
+            ],
+            "approved": true
+          },
+          "next": ["send"]
+        },
+        {
+          "input": null,
+          "config": {"configurable": {"thread_id": "apr-1"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."},
+              {"role": "system", "content": "Sent the refund confirmation."}
+            ],
+            "approved": true
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "input": {
+            "messages": [{"role": "user", "content": "Please refund order 1042."}],
+            "approved": false
+          },
+          "config": {"configurable": {"thread_id": "apr-hold"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."}
+            ],
+            "approved": false
+          }
+        },
+        {
+          "input": null,
+          "config": {"configurable": {"thread_id": "apr-hold"}},
+          "expected": {
+            "messages": [
+              {"role": "user", "content": "Please refund order 1042."},
+              {"id": "draft", "role": "assistant", "content": "Refund order 1042 for the paid amount."},
+              {"role": "system", "content": "Held for review."}
+            ],
+            "approved": false
+          }
+        }
+      ]
+    }
+  ],
+  "09": [
+    {
+      "steps": [
+        {
+          "input": {"ticket": "Please refund invoice 1042.", "team": "", "reply": ""},
+          "config": {"configurable": {"thread_id": "edit-1"}},
+          "expected": {
+            "ticket": "Please refund invoice 1042.",
+            "team": "billing",
+            "reply": "Billing will process the refund."
+          }
+        },
+        {
+          "history": {"configurable": {"thread_id": "edit-1"}},
+          "length": 2,
+          "newest": {
+            "ticket": "Please refund invoice 1042.",
+            "team": "billing",
+            "reply": "Billing will process the refund."
+          },
+          "older": {
+            "ticket": "Please refund invoice 1042.",
+            "team": "billing",
+            "reply": ""
+          }
+        },
+        {
+          "update_state": {"values": {"team": "engineering"}, "as_node": "classify"},
+          "config": {"configurable": {"thread_id": "edit-1"}},
+          "expected": {
+            "ticket": "Please refund invoice 1042.",
+            "team": "engineering",
+            "reply": "Billing will process the refund."
+          },
+          "next": ["draft"]
+        },
+        {
+          "input": null,
+          "config": {"configurable": {"thread_id": "edit-1"}},
+          "expected": {
+            "ticket": "Please refund invoice 1042.",
+            "team": "engineering",
+            "reply": "Engineering will investigate the error."
+          }
+        }
+      ]
+    }
+  ],
+  "10": [
+    {
+      "input": {"query": "What is the refund window?", "passages": [], "draft": "", "answer": ""},
+      "expected": {
+        "query": "What is the refund window?",
+        "passages": [{"source": "policy", "text": "Refunds are allowed within 30 days."}],
+        "draft": "Refunds are allowed within 30 days.",
+        "answer": "Refunds are allowed within 30 days."
+      }
+    },
+    {
+      "input": {
+        "query": "What is the refund window?",
+        "passages": [{"source": "ticket", "text": "Customer asked twice."}],
+        "draft": "",
+        "answer": ""
+      },
+      "expected": {
+        "query": "What is the refund window?",
+        "passages": [
+          {"source": "ticket", "text": "Customer asked twice."},
+          {"source": "policy", "text": "Refunds are allowed within 30 days."}
+        ],
+        "draft": "Refunds are allowed within 30 days.",
+        "answer": "Refunds are allowed within 30 days."
+      }
+    }
+  ],
+  "11": [
+    {
+      "input": {
+        "items": [{"sku": "sku-a", "qty": 2}, {"sku": "sku-b", "qty": 1}],
+        "quotes": [],
+        "amount": 0
+      },
+      "expected": {
+        "items": [{"sku": "sku-a", "qty": 2}, {"sku": "sku-b", "qty": 1}],
+        "quotes": [
+          {"sku": "sku-a", "amount": 40},
+          {"sku": "sku-b", "amount": 15}
+        ],
+        "amount": 55
+      }
+    },
+    {
+      "input": {
+        "items": [{"sku": "sku-a", "qty": 1}],
+        "quotes": [],
+        "amount": 0
+      },
+      "expected": {
+        "items": [{"sku": "sku-a", "qty": 1}],
+        "quotes": [{"sku": "sku-a", "amount": 20}],
+        "amount": 20
+      }
+    },
+    {
+      "input": {"items": [], "quotes": [], "amount": 0},
+      "expected": {"items": [], "quotes": [], "amount": 0}
+    }
+  ],
+  "12": [
+    {
+      "steps": [
+        {
+          "input": {
+            "customer_id": "1042",
+            "note": "Email refunds to ada@example.com",
+            "saved": ""
+          },
+          "config": {"configurable": {"thread_id": "writer"}},
+          "expected": {
+            "customer_id": "1042",
+            "note": "Email refunds to ada@example.com",
+            "saved": "Email refunds to ada@example.com"
+          }
+        },
+        {
+          "input": {"customer_id": "1042", "note": "", "saved": ""},
+          "config": {"configurable": {"thread_id": "reader"}},
+          "expected": {
+            "customer_id": "1042",
+            "note": "",
+            "saved": "Email refunds to ada@example.com"
+          }
+        },
+        {
+          "input": {"customer_id": "88", "note": "", "saved": ""},
+          "config": {"configurable": {"thread_id": "other"}},
+          "expected": {"customer_id": "88", "note": "", "saved": ""}
+        }
+      ]
+    }
+  ],
+  "13": [
+    {
+      "input": {"order_id": "1042", "amount": 40, "receipt": ""},
+      "expected": {"order_id": "1042", "amount": 40, "receipt": "refund-1042-40"}
+    },
+    {
+      "input": {"order_id": "99", "amount": 15, "receipt": ""},
+      "expected": {"order_id": "99", "amount": 15, "receipt": "refund-99-15"}
+    }
+  ],
+  "14": [
+    {
+      "input": {
+        "messages": [
+          {"role": "user", "content": "old"},
+          {"role": "assistant", "content": "Noted."},
+          {"role": "user", "content": "Can I get a refund?"},
+          {"role": "assistant", "content": "Checking the policy."}
+        ]
+      },
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "Can I get a refund?"},
+          {"role": "assistant", "content": "Checking the policy."},
+          {"role": "assistant", "content": "Refunds are allowed within 30 days."}
+        ]
+      }
+    },
+    {
+      "input": {"messages": [{"role": "user", "content": "Hello"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "Hello"},
+          {"role": "assistant", "content": "Ask me about a refund."}
+        ]
+      }
     }
   ]
 }

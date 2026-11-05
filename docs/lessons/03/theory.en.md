@@ -1,26 +1,28 @@
-# 03 — Reducers
+# 03 — Accumulate passages
 
 ## What you learn
-- By default a returned key **overwrites** that field. Lesson 01 relies on this.
-- A reducer **combines** the old value with the update.
-- `Annotated[list, operator.add]` concatenates lists (`left + right`).
-- Fields without a reducer, like `total` here, still overwrite.
-
-Put the reducer on the **schema**, not inside the node. Each node should return only its own new items.
+- A returned key overwrites that field. `draft` is supposed to do that: the writer replaces the retriever’s placeholder.
+- A reducer combines the old value with the update. `passages` must keep every hit.
+- `Annotated[list, operator.add]` concatenates lists. Put it on the schema. Each node returns only the passages it found.
 
 ## Contract
 
 ```text
-State:  log: Annotated[list, operator.add], total: int
-Nodes:  push_a adds ["a"] and +1; push_b adds ["b"] and +10
-Edges:  START → push_a → push_b → END
-invoke({"log": [], "total": 0})
-    == {"log": ["a", "b"], "total": 11}
-invoke({"log": ["seed"], "total": 5})
-    == {"log": ["seed", "a", "b"], "total": 16}
+START → retrieve → write → END
+
+retrieve  appends {"source": "faq", "text": query}
+          sets draft to "Looking up the policy."
+write     appends {"source": "policy", "text": "Refunds are allowed within 30 days."}
+          sets draft to that same sentence
+
+query "What is the refund window?" and passages []
+  → faq, then policy
+  → draft == "Refunds are allowed within 30 days."
+
+passages that already hold a ticket note keep that note in front.
 ```
 
-`log` must already be in the input. `operator.add` cannot start from a missing value (`None + ["a"]` is a Python error).
+`passages` has to be present on the input. `operator.add` does not start from a missing value.
 
 ## Skeleton
 
@@ -30,26 +32,33 @@ from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, START, END
 
 class State(TypedDict):
-    log: Annotated[list, operator.add]
-    total: int
+    query: str
+    passages: Annotated[list, operator.add]
+    draft: str
 
-def push_a(state: State) -> dict:
-    return {"log": ["a"], "total": state["total"] + 1}
+def retrieve(state: State) -> dict:
+    return {
+        "passages": [{"source": "faq", "text": state["query"]}],
+        "draft": "Looking up the policy.",
+    }
 
-def push_b(state: State) -> dict:
-    return {"log": ["b"], "total": state["total"] + 10}
+def write(state: State) -> dict:
+    return {
+        "passages": [{"source": "policy", "text": "Refunds are allowed within 30 days."}],
+        "draft": "Refunds are allowed within 30 days.",
+    }
 
 def build_graph():
     g = StateGraph(State)
-    g.add_node("push_a", push_a)
-    g.add_node("push_b", push_b)
-    g.add_edge(START, "push_a")
-    g.add_edge("push_a", "push_b")
-    g.add_edge("push_b", END)
+    g.add_node("retrieve", retrieve)
+    g.add_node("write", write)
+    g.add_edge(START, "retrieve")
+    g.add_edge("retrieve", "write")
+    g.add_edge("write", END)
     return g.compile()
 ```
 
 ## Teaching subset
-- The first callable in `Annotated` metadata is the reducer. That matches the usual LangGraph pattern.
-- This page reads annotations when `build_graph()` compiles. A plain `list` annotation overwrites, which is why the starter fails.
-- There is no parallel fan-in yet. Two sequential nodes writing the same reduced key is the whole lesson.
+- The first callable in `Annotated` metadata is the reducer.
+- The grader reads those hints when `build_graph()` compiles. A plain `list` drops the faq hit, which is the starter’s failure.
+- Two sequential writers are enough. Parallel fan-in is not in this subset.
