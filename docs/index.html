@@ -232,6 +232,51 @@
     #out .ok { color: var(--ok); }
     #out .fail { color: var(--fail); }
     #out .dim { color: var(--muted); }
+    .editor-stack {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    #editor {
+      height: 420px;
+      border-bottom: 1px solid var(--border);
+    }
+    .editor-wrap.with-solution #editor {
+      height: 280px;
+    }
+    #solutionPanel {
+      display: none;
+      flex-direction: column;
+      border-top: 1px solid var(--border);
+      background: #0c0e13;
+    }
+    #solutionPanel.open {
+      display: flex;
+    }
+    #solutionPanel .sol-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.4rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      background: #12151c;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 650;
+    }
+    #solutionPanel .sol-head button {
+      padding: 0.2rem 0.55rem;
+      font-size: 0.75rem;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+    #solutionEditor {
+      height: 220px;
+    }
     footer {
       text-align: center;
       color: var(--muted);
@@ -261,7 +306,7 @@
 
     <section class="card editor-wrap">
       <div class="card-head">
-        <h2>Your code · <span id="modeLabel">starter</span></h2>
+        <h2>Your code</h2>
       </div>
       <div class="toolbar">
         <button class="primary" id="btnRun" disabled>▶ Run grade</button>
@@ -269,7 +314,16 @@
         <button id="btnSolution">Show solution</button>
         <span class="status" id="status">booting Python…</span>
       </div>
-      <div id="editor"></div>
+      <div class="editor-stack">
+        <div id="editor"></div>
+        <div id="solutionPanel" aria-hidden="true">
+          <div class="sol-head">
+            <span>Solution · read-only</span>
+            <button type="button" id="btnHideSolution">Hide</button>
+          </div>
+          <div id="solutionEditor"></div>
+        </div>
+      </div>
       <pre id="out"><span class="dim">Python boots in the browser (Pyodide). Grade runs student code against mini_langgraph.</span></pre>
     </section>
   </div>
@@ -293,8 +347,26 @@
     let solution = "";
     let showingSolution = false;
     let editor = null;
+    let solutionEditor = null;
     let lang = localStorage.getItem(LANG_KEY) || "zh";
     if (lang !== "zh" && lang !== "en") lang = "zh";
+
+    function setSolutionVisible(open) {
+      showingSolution = !!open;
+      const panel = document.getElementById("solutionPanel");
+      const wrap = document.querySelector(".editor-wrap");
+      const btn = document.getElementById("btnSolution");
+      panel.classList.toggle("open", showingSolution);
+      panel.setAttribute("aria-hidden", showingSolution ? "false" : "true");
+      wrap.classList.toggle("with-solution", showingSolution);
+      btn.classList.toggle("active", showingSolution);
+      btn.textContent = showingSolution ? "Hide solution" : "Show solution";
+      if (showingSolution && solutionEditor) {
+        solutionEditor.setValue(solution || "");
+        solutionEditor.layout();
+      }
+      if (editor) editor.layout();
+    }
 
     function setStatus(text, cls) {
       const el = document.getElementById("status");
@@ -355,7 +427,13 @@
       ]);
       starter = await sRes.text();
       solution = await solRes.text();
-      if (editor) editor.setValue(showingSolution ? solution : starter);
+      // Only seed the student editor on first load — never clobber edits.
+      if (editor && !editor.getValue().trim()) {
+        editor.setValue(starter);
+      } else if (editor && editor.getValue() === "# loading…") {
+        editor.setValue(starter);
+      }
+      if (solutionEditor) solutionEditor.setValue(solution);
     }
 
     function initMonaco() {
@@ -373,6 +451,20 @@
           fontFamily: "JetBrains Mono, ui-monospace, Menlo, Consolas, monospace",
           scrollBeyondLastLine: false,
           tabSize: 4,
+          readOnly: false,
+        });
+        solutionEditor = monaco.editor.create(document.getElementById("solutionEditor"), {
+          value: solution || "",
+          language: "python",
+          theme: "vs-dark",
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 13,
+          fontFamily: "JetBrains Mono, ui-monospace, Menlo, Consolas, monospace",
+          scrollBeyondLastLine: false,
+          tabSize: 4,
+          readOnly: true,
+          domReadOnly: true,
         });
       });
     }
@@ -394,9 +486,6 @@
     });
 
     document.getElementById("btnReset").onclick = () => {
-      showingSolution = false;
-      document.getElementById("btnSolution").classList.remove("active");
-      document.getElementById("modeLabel").textContent = "starter";
       if (editor) {
         editor.setValue(starter);
         editor.updateOptions({ readOnly: false });
@@ -405,14 +494,11 @@
     };
 
     document.getElementById("btnSolution").onclick = () => {
-      showingSolution = !showingSolution;
-      const btn = document.getElementById("btnSolution");
-      btn.classList.toggle("active", showingSolution);
-      document.getElementById("modeLabel").textContent = showingSolution ? "solution (read-only)" : "starter";
-      if (editor) {
-        editor.setValue(showingSolution ? solution : starter);
-        editor.updateOptions({ readOnly: showingSolution });
-      }
+      setSolutionVisible(!showingSolution);
+    };
+
+    document.getElementById("btnHideSolution").onclick = () => {
+      setSolutionVisible(false);
     };
 
     document.getElementById("btnRun").onclick = async () => {
