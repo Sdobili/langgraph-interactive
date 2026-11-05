@@ -1,5 +1,5 @@
 /**
- * Browser grader for lessons 01–06.
+ * Browser grader for lessons 01–14.
  * Loads Pyodide, installs mini_langgraph as langgraph.*, then runs docs/grade_lib.py
  * against docs/grader_cases.json for the selected lesson.
  */
