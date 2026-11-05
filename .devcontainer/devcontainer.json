@@ -1,0 +1,18 @@
+{
+  "name": "LangGraph Interactive",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install -r requirements.txt",
+  "forwardPorts": [8765],
+  "portsAttributes": {
+    "8765": {
+      "label": "Lesson UI",
+      "onAutoForward": "notify"
+    }
+  },
+  "postAttachCommand": "uvicorn web.app:app --host 0.0.0.0 --port 8765",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# One-click Deploy to Render (free Web Service).
+# Open: https://dashboard.render.com/select-repo?type=web
+# Or click "New > Blueprint" and point at this repo.
+services:
+  - type: web
+    name: langgraph-interactive
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"

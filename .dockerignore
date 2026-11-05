@@ -1,0 +1,14 @@
+.venv
+venv
+__pycache__
+.pytest_cache
+.git
+.gitignore
+*.md
+!README.md
+.DS_Store
+.env
+.env.*
+.devcontainer
+fly.toml
+render.yaml
