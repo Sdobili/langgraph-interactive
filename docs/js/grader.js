@@ -1,18 +1,15 @@
 /**
- * Browser grader for Lesson 01 via Pyodide + mini_langgraph.py
- * Flow: load Pyodide → install mini as langgraph.graph → exec student code → assert invokes
+ * Browser grader for lessons 01–06.
+ * Loads Pyodide, installs mini_langgraph as langgraph.*, then runs docs/grade_lib.py
+ * against docs/grader_cases.json for the selected lesson.
  */
 (function (global) {
   "use strict";
 
-  const CASES = [
-    { input: { count: 3 }, expected: { count: 8 } },
-    { input: { count: 0 }, expected: { count: 2 } },
-    { input: { count: 5 }, expected: { count: 12 } },
-  ];
-
   let pyodide = null;
   let miniSource = null;
+  let gradeLibSource = null;
+  let casesByLesson = null;
   let readyPromise = null;
 
   function setBanner(text, cls) {
@@ -20,6 +17,12 @@
     if (!el) return;
     el.textContent = text;
     el.className = "py-banner" + (cls ? " " + cls : "");
+  }
+
+  async function loadText(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("failed to fetch " + url + ": " + res.status);
+    return res.text();
   }
 
   async function ensurePyodide() {
@@ -33,13 +36,10 @@
       pyodide = await loadPyodide({
         indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
       });
-      if (!miniSource) {
-        const res = await fetch("mini_langgraph.py");
-        if (!res.ok) throw new Error("failed to fetch mini_langgraph.py: " + res.status);
-        miniSource = await res.text();
-      }
-      // Install mini_langgraph into the interpreter and alias as langgraph.graph
+      miniSource = miniSource || (await loadText("mini_langgraph.py"));
+      gradeLibSource = gradeLibSource || (await loadText("grade_lib.py"));
       pyodide.FS.writeFile("/home/pyodide/mini_langgraph.py", miniSource);
+      pyodide.FS.writeFile("/home/pyodide/grade_lib.py", gradeLibSource);
       await pyodide.runPythonAsync(`
 import sys
 sys.path.insert(0, "/home/pyodide")
@@ -56,102 +56,66 @@ mini_langgraph.install_as_langgraph()
     return readyPromise;
   }
 
+  async function loadCases() {
+    if (casesByLesson) return casesByLesson;
+    const text = await loadText("grader_cases.json");
+    casesByLesson = JSON.parse(text);
+    return casesByLesson;
+  }
+
+  function toBase64(text) {
+    const bytes = unescape(encodeURIComponent(text));
+    if (typeof btoa === "function") return btoa(bytes);
+    return Buffer.from(text, "utf8").toString("base64");
+  }
+
   /**
-   * Grade student source. Returns { ok: boolean, lines: string[] }
+   * Grade student source for a lesson id. Returns { ok: boolean, lines: string[] }.
    */
-  async function grade(code) {
-    const lines = [];
+  async function grade(code, lessonId) {
     const py = await ensurePyodide();
+    const allCases = await loadCases();
+    const id = String(lessonId || "01");
+    const cases = allCases[id];
+    if (!cases) {
+      return { ok: false, lines: ["❌ no grader cases for lesson " + id] };
+    }
 
-    // Escape student code into a Python triple-quoted string safely
-    // Use base64 to avoid quote/indent issues
-    const b64 =
-      typeof btoa === "function"
-        ? btoa(unescape(encodeURIComponent(code)))
-        : Buffer.from(code, "utf8").toString("base64");
-
+    const srcB64 = toBase64(code);
+    const casesB64 = toBase64(JSON.stringify(cases));
     const driver = `
-import base64, json, traceback
-from mini_langgraph import install_as_langgraph
-install_as_langgraph()
-
-src = base64.b64decode(${JSON.stringify(b64)}).decode("utf-8")
-ns = {}
-result = {"ok": False, "lines": [], "error": None}
+import base64, json, sys, io
+_stdout = sys.stdout
+_buf = io.StringIO()
+sys.stdout = _buf
 try:
-    exec(compile(src, "<student>", "exec"), ns, ns)
-except Exception as e:
-    result["lines"].append("❌ exec error: " + type(e).__name__ + ": " + str(e))
-    result["error"] = traceback.format_exc()
-    print(json.dumps(result))
-else:
-    if "build_graph" not in ns:
-        result["lines"].append("❌ build_graph() not defined")
-        print(json.dumps(result))
-    else:
-        try:
-            g = ns["build_graph"]()
-        except Exception as e:
-            result["lines"].append("❌ build_graph() raised: " + type(e).__name__ + ": " + str(e))
-            print(json.dumps(result))
-        else:
-            if g is None:
-                result["lines"].append("❌ returned None — did you forget return g.compile()?")
-                print(json.dumps(result))
-            elif not hasattr(g, "invoke"):
-                result["lines"].append("❌ compiled object has no invoke()")
-                print(json.dumps(result))
-            else:
-                cases = ${JSON.stringify(CASES)}
-                all_ok = True
-                for case in cases:
-                    try:
-                        out = g.invoke(case["input"])
-                    except Exception as e:
-                        all_ok = False
-                        result["lines"].append(
-                            "❌ invoke(" + json.dumps(case["input"]) + ") raised: "
-                            + type(e).__name__ + ": " + str(e)
-                        )
-                        continue
-                    if out == case["expected"]:
-                        result["lines"].append(
-                            "✅ invoke(" + json.dumps(case["input"]) + ") → " + json.dumps(out)
-                        )
-                    else:
-                        all_ok = False
-                        result["lines"].append(
-                            "❌ invoke(" + json.dumps(case["input"]) + ") → " + json.dumps(out)
-                            + "  (expected " + json.dumps(case["expected"]) + ")"
-                        )
-                result["ok"] = all_ok
-                if all_ok:
-                    result["lines"].insert(0, "✅ PASS — all cases matched")
-                else:
-                    result["lines"].insert(0, "❌ FAIL — see cases below")
-                print(json.dumps(result))
+    from grade_lib import grade_source
+    src = base64.b64decode(${JSON.stringify(srcB64)}).decode("utf-8")
+    cases = json.loads(base64.b64decode(${JSON.stringify(casesB64)}).decode("utf-8"))
+    result = grade_source(src, cases)
+    captured = _buf.getvalue()
+    if captured.strip():
+        for line in captured.splitlines():
+            result["lines"].append("print: " + line)
+    payload = json.dumps(result)
+except Exception as exc:
+    payload = json.dumps({
+        "ok": False,
+        "lines": ["❌ grader error: " + type(exc).__name__ + ": " + str(exc)],
+    })
+finally:
+    sys.stdout = _stdout
+payload
 `;
 
     try {
-      // Capture stdout for JSON result
-      await py.runPythonAsync(`
-import sys, io
-_stdout = sys.stdout
-sys.stdout = io.StringIO()
-`);
-      await py.runPythonAsync(driver);
-      const raw = await py.runPythonAsync(`
-_out = sys.stdout.getvalue()
-sys.stdout = _stdout
-_out
-`);
+      const raw = await py.runPythonAsync(driver);
       const text = String(raw || "").trim();
-      // last non-empty line should be JSON
       const last = text.split("\n").filter(Boolean).pop() || "{}";
       let parsed;
       try {
         parsed = JSON.parse(last);
-      } catch {
+      } catch (err) {
         return { ok: false, lines: ["❌ grader parse error", last || text] };
       }
       return { ok: !!parsed.ok, lines: parsed.lines || [] };
@@ -163,6 +127,6 @@ _out
   global.LGGrader = {
     ensurePyodide,
     grade,
-    CASES,
+    loadCases,
   };
 })(window);

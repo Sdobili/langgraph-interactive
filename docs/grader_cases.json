@@ -1,0 +1,91 @@
+{
+  "01": [
+    {"input": {"count": 3}, "expected": {"count": 8}},
+    {"input": {"count": 0}, "expected": {"count": 2}},
+    {"input": {"count": 5}, "expected": {"count": 12}}
+  ],
+  "02": [
+    {"input": {"n": 4, "label": ""}, "expected": {"n": 4, "label": "positive"}},
+    {"input": {"n": -3, "label": ""}, "expected": {"n": -3, "label": "negative"}},
+    {"input": {"n": 0, "label": ""}, "expected": {"n": 0, "label": "zero"}}
+  ],
+  "03": [
+    {"input": {"log": [], "total": 0}, "expected": {"log": ["a", "b"], "total": 11}},
+    {"input": {"log": ["seed"], "total": 5}, "expected": {"log": ["seed", "a", "b"], "total": 16}}
+  ],
+  "04": [
+    {"input": {"n": 0, "trace": []}, "expected": {"n": 0, "trace": []}},
+    {"input": {"n": 1, "trace": []}, "expected": {"n": 0, "trace": [1]}},
+    {"input": {"n": 3, "trace": []}, "expected": {"n": 0, "trace": [3, 2, 1]}},
+    {"input": {"n": 3, "trace": []}, "config": {"recursion_limit": 3}, "expected": {"n": 0, "trace": [3, 2, 1]}},
+    {"input": {"n": 4, "trace": []}, "config": {"recursion_limit": 2}, "raises": "GraphRecursionError"}
+  ],
+  "05": [
+    {
+      "input": {"messages": [{"role": "user", "content": "hi"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "hi"},
+          {"id": "reply", "role": "assistant", "content": "echo: hi"}
+        ]
+      }
+    },
+    {
+      "input": {"messages": [{"role": "user", "content": "ping"}]},
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "ping"},
+          {"id": "reply", "role": "assistant", "content": "echo: ping"}
+        ]
+      }
+    },
+    {
+      "input": {
+        "messages": [
+          {"role": "user", "content": "hi"},
+          {"id": "reply", "role": "assistant", "content": "stale"}
+        ]
+      },
+      "expected": {
+        "messages": [
+          {"role": "user", "content": "hi"},
+          {"id": "reply", "role": "assistant", "content": "echo: hi"}
+        ]
+      }
+    }
+  ],
+  "06": [
+    {
+      "steps": [
+        {
+          "input": {"count": 0},
+          "config": {"configurable": {"thread_id": "counter"}},
+          "expected": {"count": 1}
+        },
+        {
+          "input": {},
+          "config": {"configurable": {"thread_id": "counter"}},
+          "expected": {"count": 2}
+        },
+        {
+          "input": {},
+          "config": {"configurable": {"thread_id": "counter"}},
+          "expected": {"count": 3}
+        },
+        {
+          "get_state": {"configurable": {"thread_id": "counter"}},
+          "expected": {"count": 3}
+        },
+        {
+          "input": {"count": 10},
+          "config": {"configurable": {"thread_id": "other"}},
+          "expected": {"count": 11}
+        },
+        {
+          "get_state": {"configurable": {"thread_id": "counter"}},
+          "expected": {"count": 3}
+        }
+      ]
+    }
+  ]
+}
